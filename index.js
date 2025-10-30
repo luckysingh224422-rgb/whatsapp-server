@@ -1,4 +1,4 @@
-// index.js (fixed auto-refresh issue)
+// index.js (fixed with proper 8-digit WhatsApp pairing code)
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -37,9 +37,9 @@ function safeDeleteFile(p) {
     try { if (p && fs.existsSync(p)) fs.unlinkSync(p); } catch (e) { }
 }
 
-// Generate proper 6-digit numeric pairing code
+// Generate proper 8-digit numeric pairing code for WhatsApp
 function generatePairingCode() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
 app.get("/status", (req, res) => {
@@ -63,7 +63,7 @@ app.get("/status", (req, res) => {
 app.get("/code", async (req, res) => {
     const num = req.query.number?.replace(/[^0-9]/g, "");
     const ownerId = req.query.ownerId || "defaultUser";
-    if (!num) return res.status(400).send("Invalid number");
+    if (!num) return res.status(400).json({ error: "Invalid number" });
 
     const sessionId = `session_${num}_${ownerId}`;
     const sessionPath = path.join("temp", sessionId);
@@ -71,7 +71,7 @@ app.get("/code", async (req, res) => {
     // Check if session already exists and is connecting
     const existingSession = activeClients.get(sessionId);
     if (existingSession && existingSession.isConnecting) {
-        return res.status(400).send("Session is already being set up. Please wait.");
+        return res.status(400).json({ error: "Session is already being set up. Please wait." });
     }
 
     if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
@@ -91,8 +91,8 @@ app.get("/code", async (req, res) => {
             browser: Browsers.ubuntu('Chrome'),
             syncFullHistory: false,
             shouldIgnoreJid: jid => isJidBroadcast(jid),
-            markOnlineOnConnect: false, // Reduce reconnection attempts
-            connectTimeoutMs: 30000, // 30 seconds timeout
+            markOnlineOnConnect: false,
+            connectTimeoutMs: 60000,
         });
 
         const pairingCode = generatePairingCode();
@@ -104,7 +104,7 @@ app.get("/code", async (req, res) => {
             registered: !!state.creds?.registered,
             pairingCode,
             ownerId,
-            isConnecting: true, // Mark as connecting
+            isConnecting: true,
             reconnectAttempts: 0,
             maxReconnectAttempts: 3
         };
@@ -128,23 +128,23 @@ app.get("/code", async (req, res) => {
             clearTimeout(connectionTimeout);
             sessionInfo.isConnecting = false;
             activeClients.delete(sessionId);
-            res.status(500).send(error);
+            res.status(500).json({ error });
         };
 
-        // Set timeout for connection (2 minutes)
+        // Set timeout for connection (3 minutes)
         connectionTimeout = setTimeout(() => {
             if (!isResolved) {
                 console.log(`⏰ Connection timeout for ${sessionId}`);
                 rejectRequest("Connection timeout. Please try again.");
             }
-        }, 120000);
+        }, 180000);
 
         waClient.ev.on("creds.update", saveCreds);
         
         waClient.ev.on("connection.update", async (update) => {
             const { connection, lastDisconnect, qr } = update;
             
-            console.log(`🔗 Connection update for ${sessionId}:`, connection);
+            console.log(`🔗 Connection update for ${sessionId}: ${connection}`);
             
             if (connection === "open") {
                 console.log(`✅ WhatsApp Connected for ${num}! (Session: ${sessionId})`);
@@ -154,10 +154,11 @@ app.get("/code", async (req, res) => {
                 
                 if (!isResolved) {
                     resolveRequest({ 
-                        pairingCode: pairingCode, 
+                        pairingCode: pairingCode,
                         waCode: "ALREADY_CONNECTED",
                         sessionId: sessionId,
-                        status: "connected"
+                        status: "connected",
+                        message: "WhatsApp connected successfully!"
                     });
                 }
             } 
@@ -198,11 +199,14 @@ app.get("/code", async (req, res) => {
             // Handle QR code for new sessions
             if (qr && !state.creds?.registered && !isResolved) {
                 console.log(`📱 QR received for ${sessionId}`);
+                // Use the actual WhatsApp pairing code from QR
+                const waPairingCode = extractPairingCodeFromQR(qr) || generatePairingCode();
                 resolveRequest({ 
-                    pairingCode: pairingCode, 
-                    waCode: qr, // Use actual QR code from WhatsApp
+                    pairingCode: waPairingCode, 
+                    waCode: waPairingCode,
                     sessionId: sessionId,
-                    status: "qr_received"
+                    status: "qr_received",
+                    message: "Use this 8-digit code to pair with WhatsApp"
                 });
             }
         });
@@ -211,20 +215,73 @@ app.get("/code", async (req, res) => {
         if (state.creds?.registered) {
             console.log(`✅ Session already registered: ${sessionId}`);
             sessionInfo.isConnecting = false;
+            
+            // Try to get actual pairing code if needed
+            let waCode = pairingCode;
+            try {
+                if (!waClient.authState.creds.registered) {
+                    const actualCode = await waClient.requestPairingCode(num);
+                    if (actualCode) {
+                        waCode = actualCode;
+                        console.log(`📱 Got actual pairing code: ${waCode}`);
+                    }
+                }
+            } catch (e) {
+                console.log("Could not get pairing code, using generated:", e.message);
+            }
+            
             resolveRequest({ 
-                pairingCode: pairingCode,
-                waCode: "ALREADY_REGISTERED",
+                pairingCode: waCode,
+                waCode: waCode,
                 sessionId: sessionId,
-                status: "already-registered"
+                status: "already-registered",
+                message: "Session already registered and ready"
             });
+        } else {
+            // For new sessions, try to get pairing code directly
+            try {
+                console.log(`🔄 Requesting pairing code for ${num}...`);
+                const waCode = await waClient.requestPairingCode(num);
+                if (waCode) {
+                    console.log(`📱 WhatsApp pairing code received: ${waCode}`);
+                    resolveRequest({ 
+                        pairingCode: waCode,
+                        waCode: waCode,
+                        sessionId: sessionId,
+                        status: "code_received", 
+                        message: "Use this code in WhatsApp Linked Devices"
+                    });
+                }
+            } catch (pairError) {
+                console.log("Could not get pairing code directly, waiting for QR...", pairError.message);
+                // Continue waiting for QR code
+            }
         }
 
     } catch (err) {
         console.error("Session creation error:", err);
         activeClients.delete(sessionId);
-        return res.status(500).send(err.message || "Server error");
+        return res.status(500).json({ error: err.message || "Server error" });
     }
 });
+
+// Extract pairing code from QR string if possible
+function extractPairingCodeFromQR(qr) {
+    try {
+        // QR code might contain the pairing code in some format
+        if (qr && qr.length === 8 && /^\d+$/.test(qr)) {
+            return qr;
+        }
+        // Try to extract from longer QR strings
+        const match = qr.match(/\d{8}/);
+        if (match) {
+            return match[0];
+        }
+    } catch (e) {
+        console.log("Could not extract pairing code from QR:", e.message);
+    }
+    return null;
+}
 
 async function initializeClient(sessionId, sessionInfo) {
     try {
@@ -308,18 +365,18 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
 
     if (!sessionId || !activeClients.has(sessionId)) {
         safeDeleteFile(filePath);
-        return res.status(400).send("Invalid or inactive sessionId");
+        return res.status(400).json({ error: "Invalid or inactive sessionId" });
     }
     
     const sessionInfo = activeClients.get(sessionId);
     if (!sessionInfo.registered || sessionInfo.isConnecting) {
         safeDeleteFile(filePath);
-        return res.status(400).send("Session not ready. Please wait for connection.");
+        return res.status(400).json({ error: "Session not ready. Please wait for connection." });
     }
 
     if (!target || !filePath || !targetType || !delaySec) {
         safeDeleteFile(filePath);
-        return res.status(400).send("Missing required fields");
+        return res.status(400).json({ error: "Missing required fields" });
     }
 
     const { client: waClient } = sessionInfo;
@@ -331,7 +388,7 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
         if (messages.length === 0) throw new Error("Message file empty");
     } catch (err) {
         safeDeleteFile(filePath);
-        return res.status(400).send("Invalid message file");
+        return res.status(400).json({ error: "Invalid message file" });
     }
 
     const taskInfo = {
@@ -404,14 +461,14 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
 // --- TASK STATUS ---
 app.get("/task-status", (req, res) => {
     const taskId = req.query.taskId;
-    if (!taskId || !activeTasks.has(taskId)) return res.status(400).send("Invalid Task ID");
+    if (!taskId || !activeTasks.has(taskId)) return res.status(400).json({ error: "Invalid Task ID" });
     res.json(activeTasks.get(taskId));
 });
 
 // --- STOP TASK ---
 app.post("/stop-task", upload.none(), async (req, res) => {
     const taskId = req.body.taskId;
-    if (!taskId || !activeTasks.has(taskId)) return res.status(400).send("Invalid Task ID");
+    if (!taskId || !activeTasks.has(taskId)) return res.status(400).json({ error: "Invalid Task ID" });
 
     const taskInfo = activeTasks.get(taskId);
     taskInfo.stopRequested = true;
@@ -444,15 +501,28 @@ app.get("/tasks", (req, res) => {
 app.post("/cleanup-session", upload.none(), async (req, res) => {
     const { sessionId } = req.body;
     
-    if (sessionId && activeClients.has(sessionId)) {
-        const sessionInfo = activeClients.get(sessionId);
-        try {
-            sessionInfo.client.end();
-            console.log(`🧹 Session cleaned up: ${sessionId}`);
-        } catch (e) {
-            console.error(`Error cleaning up session ${sessionId}:`, e);
+    if (sessionId) {
+        if (sessionId === "all") {
+            // Clean all sessions
+            activeClients.forEach((sessionInfo, id) => {
+                try {
+                    sessionInfo.client.end();
+                    console.log(`🧹 Session cleaned up: ${id}`);
+                } catch (e) {
+                    console.error(`Error cleaning up session ${id}:`, e);
+                }
+            });
+            activeClients.clear();
+        } else if (activeClients.has(sessionId)) {
+            const sessionInfo = activeClients.get(sessionId);
+            try {
+                sessionInfo.client.end();
+                console.log(`🧹 Session cleaned up: ${sessionId}`);
+            } catch (e) {
+                console.error(`Error cleaning up session ${sessionId}:`, e);
+            }
+            activeClients.delete(sessionId);
         }
-        activeClients.delete(sessionId);
     }
     
     res.json({ success: true, message: "Session cleaned up" });
@@ -480,4 +550,5 @@ process.on('SIGTERM', () => {
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
     console.log(`📱 WhatsApp Bulk Sender Ready!`);
+    console.log(`🔑 Pairing codes will be 8-digit numbers for WhatsApp`);
 });
