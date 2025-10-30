@@ -1,4 +1,4 @@
-// index.js (fixed with correct WhatsApp pairing code)
+// index.js (fixed pairingCode null issue)
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -37,18 +37,25 @@ function safeDeleteFile(p) {
     try { if (p && fs.existsSync(p)) fs.unlinkSync(p); } catch (e) { }
 }
 
+// Generate temporary pairing code for display
+function generateDisplayCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 app.get("/status", (req, res) => {
     const ownerId = req.query.ownerId;
+    const sessions = [...activeClients.entries()]
+        .filter(([_, info]) => !ownerId || info.ownerId === ownerId)
+        .map(([id, info]) => ({
+            sessionId: id,
+            number: info.number,
+            registered: info.registered,
+            pairingCode: info.pairingCode || "GENERATING...",
+            isConnecting: info.isConnecting || false
+        }));
+
     res.json({
-        activeSessions: [...activeClients.entries()]
-            .filter(([_, info]) => !ownerId || info.ownerId === ownerId)
-            .map(([id, info]) => ({
-                sessionId: id,
-                number: info.number,
-                registered: info.registered,
-                pairingCode: info.pairingCode,
-                isConnecting: info.isConnecting || false
-            })),
+        activeSessions: sessions,
         activeTasks: [...activeTasks.entries()]
             .filter(([_, task]) => !ownerId || task.ownerId === ownerId).length
     });
@@ -63,10 +70,21 @@ app.get("/code", async (req, res) => {
     const sessionId = `session_${num}_${ownerId}`;
     const sessionPath = path.join("temp", sessionId);
     
-    // Check if session already exists and is connecting
+    // Check if session already exists
     const existingSession = activeClients.get(sessionId);
-    if (existingSession && existingSession.isConnecting) {
-        return res.status(400).json({ error: "Session is already being set up. Please wait." });
+    if (existingSession) {
+        if (existingSession.isConnecting) {
+            return res.status(400).json({ error: "Session is already being set up. Please wait." });
+        }
+        if (existingSession.registered) {
+            return res.json({ 
+                pairingCode: existingSession.pairingCode || "ALREADY_CONNECTED",
+                waCode: "ALREADY_CONNECTED", 
+                sessionId: sessionId,
+                status: "already-registered",
+                message: "Session already registered and ready to use"
+            });
+        }
     }
 
     if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
@@ -75,11 +93,23 @@ app.get("/code", async (req, res) => {
         const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
         const { version } = await fetchLatestBaileysVersion();
 
-        // If already registered, just return success
+        // If already registered, return success
         if (state.creds?.registered) {
-            console.log(`✅ Session already registered: ${sessionId}`);
+            const displayCode = generateDisplayCode();
+            const sessionInfo = {
+                client: null, // Will be initialized when needed
+                number: num,
+                authPath: sessionPath,
+                registered: true,
+                pairingCode: displayCode,
+                ownerId,
+                isConnecting: false
+            };
+            
+            activeClients.set(sessionId, sessionInfo);
+            
             return res.json({ 
-                pairingCode: "ALREADY_REGISTERED",
+                pairingCode: displayCode,
                 waCode: "ALREADY_REGISTERED", 
                 sessionId: sessionId,
                 status: "already-registered",
@@ -93,21 +123,23 @@ app.get("/code", async (req, res) => {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
             },
-            printQRInTerminal: true, // Terminal pe QR dikhayega
+            printQRInTerminal: true,
             logger: pino({ level: "fatal" }),
             browser: Browsers.ubuntu('Chrome'),
             syncFullHistory: false,
             shouldIgnoreJid: jid => isJidBroadcast(jid),
-            markOnlineOnConnect: false,
+            markOnlineOnConnect: true,
             connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: 60000,
         });
 
+        const displayCode = generateDisplayCode();
         const sessionInfo = {
             client: waClient,
             number: num,
             authPath: sessionPath,
             registered: false,
-            pairingCode: null,
+            pairingCode: displayCode,
             ownerId,
             isConnecting: true,
             reconnectAttempts: 0,
@@ -118,7 +150,6 @@ app.get("/code", async (req, res) => {
 
         let connectionTimeout;
         let isResolved = false;
-        let pairingCodeReceived = false;
 
         const resolveRequest = (data) => {
             if (isResolved) return;
@@ -133,46 +164,20 @@ app.get("/code", async (req, res) => {
             isResolved = true;
             clearTimeout(connectionTimeout);
             sessionInfo.isConnecting = false;
-            activeClients.delete(sessionId);
+            // Don't delete session immediately, keep it for status
             res.status(500).json({ error });
         };
 
-        // Set timeout for connection (3 minutes)
+        // Set timeout for connection (2 minutes)
         connectionTimeout = setTimeout(() => {
             if (!isResolved) {
                 console.log(`⏰ Connection timeout for ${sessionId}`);
                 rejectRequest("Connection timeout. Please try again.");
             }
-        }, 180000);
+        }, 120000);
 
         waClient.ev.on("creds.update", saveCreds);
         
-        // First, try to get pairing code directly
-        try {
-            console.log(`🔄 Requesting pairing code for ${num}...`);
-            const pairingCode = await waClient.requestPairingCode(num);
-            
-            if (pairingCode && pairingCode.match(/^\d{8}$/)) {
-                console.log(`✅ WhatsApp pairing code received: ${pairingCode}`);
-                pairingCodeReceived = true;
-                
-                sessionInfo.pairingCode = pairingCode;
-                sessionInfo.registered = false;
-                
-                resolveRequest({ 
-                    pairingCode: pairingCode,
-                    waCode: pairingCode,
-                    sessionId: sessionId,
-                    status: "code_received", 
-                    message: "Use this 8-digit code in WhatsApp Linked Devices"
-                });
-                return;
-            }
-        } catch (pairError) {
-            console.log("Could not get pairing code directly, using QR method...", pairError.message);
-        }
-
-        // If direct pairing code fails, use QR method
         waClient.ev.on("connection.update", async (update) => {
             const { connection, lastDisconnect, qr } = update;
             
@@ -186,7 +191,7 @@ app.get("/code", async (req, res) => {
                 
                 if (!isResolved) {
                     resolveRequest({ 
-                        pairingCode: "CONNECTED",
+                        pairingCode: sessionInfo.pairingCode,
                         waCode: "CONNECTED",
                         sessionId: sessionId,
                         status: "connected",
@@ -199,42 +204,43 @@ app.get("/code", async (req, res) => {
                 console.log(`❌ Connection closed for ${sessionId}, status: ${statusCode}`);
                 
                 if (statusCode === 401) {
-                    // Authentication error - remove session
-                    console.log(`🚫 Auth error for ${sessionId}, re-pair required.`);
-                    activeClients.delete(sessionId);
+                    console.log(`🚫 Auth error for ${sessionId}`);
+                    sessionInfo.registered = false;
+                    sessionInfo.isConnecting = false;
                     if (!isResolved) {
                         rejectRequest("Authentication failed. Please pair again.");
                     }
                 } else {
-                    // Other errors - limited reconnection attempts
                     sessionInfo.reconnectAttempts++;
                     if (sessionInfo.reconnectAttempts <= sessionInfo.maxReconnectAttempts) {
-                        console.log(`🔄 Reconnection attempt ${sessionInfo.reconnectAttempts} for ${sessionId} in 10s...`);
+                        console.log(`🔄 Reconnection attempt ${sessionInfo.reconnectAttempts} for ${sessionId} in 5s...`);
                         setTimeout(() => {
                             if (activeClients.has(sessionId)) {
                                 initializeClient(sessionId, sessionInfo);
                             }
-                        }, 10000);
+                        }, 5000);
                     } else {
                         console.log(`🚫 Max reconnection attempts reached for ${sessionId}`);
-                        activeClients.delete(sessionId);
+                        sessionInfo.isConnecting = false;
                         if (!isResolved) {
                             rejectRequest("Max reconnection attempts reached. Please try again.");
                         }
                     }
                 }
             }
+            else if (connection === "connecting") {
+                console.log(`🔄 Connecting to WhatsApp... (${sessionId})`);
+            }
             
-            // Handle QR code for new sessions
-            if (qr && !pairingCodeReceived && !isResolved) {
+            // Handle QR code
+            if (qr && !isResolved) {
                 console.log(`📱 QR code received for ${sessionId}`);
-                // QR code aane par bhi direct pairing code try karo
+                // Try to get pairing code
                 try {
+                    console.log(`🔄 Attempting to get pairing code for ${num}...`);
                     const pairingCode = await waClient.requestPairingCode(num);
-                    if (pairingCode && pairingCode.match(/^\d{8}$/)) {
-                        console.log(`✅ WhatsApp pairing code received via QR: ${pairingCode}`);
-                        pairingCodeReceived = true;
-                        
+                    if (pairingCode && /^\d+$/.test(pairingCode)) {
+                        console.log(`✅ WhatsApp pairing code received: ${pairingCode}`);
                         sessionInfo.pairingCode = pairingCode;
                         
                         resolveRequest({ 
@@ -242,13 +248,12 @@ app.get("/code", async (req, res) => {
                             waCode: pairingCode,
                             sessionId: sessionId,
                             status: "code_received", 
-                            message: "Use this 8-digit code in WhatsApp Linked Devices"
+                            message: `Use this code in WhatsApp: ${pairingCode}`
                         });
                     } else {
-                        // Agar pairing code nahi mila to QR dikhao
-                        console.log(`📱 Showing QR code for pairing`);
+                        // Show QR if no pairing code
                         resolveRequest({ 
-                            pairingCode: "SCAN_QR",
+                            pairingCode: sessionInfo.pairingCode,
                             waCode: qr,
                             sessionId: sessionId,
                             status: "qr_received", 
@@ -256,10 +261,10 @@ app.get("/code", async (req, res) => {
                         });
                     }
                 } catch (error) {
-                    console.log("Failed to get pairing code after QR:", error.message);
-                    // QR code hi dikhao
+                    console.log("❌ Failed to get pairing code:", error.message);
+                    // Show QR code as fallback
                     resolveRequest({ 
-                        pairingCode: "SCAN_QR",
+                        pairingCode: sessionInfo.pairingCode,
                         waCode: qr,
                         sessionId: sessionId,
                         status: "qr_received", 
@@ -269,8 +274,30 @@ app.get("/code", async (req, res) => {
             }
         });
 
+        // Try to get pairing code immediately
+        try {
+            console.log(`🔄 Getting pairing code for ${num}...`);
+            const pairingCode = await waClient.requestPairingCode(num);
+            if (pairingCode && /^\d+$/.test(pairingCode)) {
+                console.log(`✅ Got pairing code immediately: ${pairingCode}`);
+                sessionInfo.pairingCode = pairingCode;
+                sessionInfo.isConnecting = false;
+                
+                resolveRequest({ 
+                    pairingCode: pairingCode,
+                    waCode: pairingCode,
+                    sessionId: sessionId,
+                    status: "code_received", 
+                    message: `Use code: ${pairingCode} in WhatsApp Linked Devices`
+                });
+            }
+        } catch (error) {
+            console.log("ℹ️ Waiting for QR code...", error.message);
+            // Continue waiting for QR
+        }
+
     } catch (err) {
-        console.error("Session creation error:", err);
+        console.error("❌ Session creation error:", err);
         activeClients.delete(sessionId);
         return res.status(500).json({ error: err.message || "Server error" });
     }
@@ -292,10 +319,8 @@ async function initializeClient(sessionId, sessionInfo) {
             browser: Browsers.ubuntu('Chrome'),
             syncFullHistory: false,
             markOnlineOnConnect: false,
-            connectTimeoutMs: 30000,
         });
 
-        // Update session info
         sessionInfo.client = waClient;
         sessionInfo.isConnecting = true;
 
@@ -315,20 +340,20 @@ async function initializeClient(sessionId, sessionInfo) {
                 console.log(`Reconnection closed for ${sessionId}, status: ${statusCode}`);
                 
                 if (statusCode === 401) {
-                    console.log(`Auth failed for ${sessionId}, removing session.`);
-                    activeClients.delete(sessionId);
+                    console.log(`Auth failed for ${sessionId}`);
+                    sessionInfo.registered = false;
+                    sessionInfo.isConnecting = false;
                 } else {
                     sessionInfo.reconnectAttempts++;
                     if (sessionInfo.reconnectAttempts <= sessionInfo.maxReconnectAttempts) {
-                        console.log(`Retry reconnect for ${sessionId} in 10s... (attempt ${sessionInfo.reconnectAttempts})`);
                         setTimeout(() => {
                             if (activeClients.has(sessionId)) {
                                 initializeClient(sessionId, sessionInfo);
                             }
-                        }, 10000);
+                        }, 5000);
                     } else {
                         console.log(`Max reconnection attempts reached for ${sessionId}`);
-                        activeClients.delete(sessionId);
+                        sessionInfo.isConnecting = false;
                     }
                 }
             }
@@ -336,18 +361,7 @@ async function initializeClient(sessionId, sessionInfo) {
 
     } catch (err) {
         console.error(`Reconnection failed for ${sessionId}`, err);
-        sessionInfo.reconnectAttempts++;
-        
-        if (sessionInfo.reconnectAttempts <= sessionInfo.maxReconnectAttempts) {
-            setTimeout(() => {
-                if (activeClients.has(sessionId)) {
-                    initializeClient(sessionId, sessionInfo);
-                }
-            }, 10000);
-        } else {
-            console.log(`Final reconnection failure for ${sessionId}`);
-            activeClients.delete(sessionId);
-        }
+        sessionInfo.isConnecting = false;
     }
 }
 
@@ -365,6 +379,42 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
     if (!sessionInfo.registered || sessionInfo.isConnecting) {
         safeDeleteFile(filePath);
         return res.status(400).json({ error: "Session not ready. Please wait for connection." });
+    }
+
+    // Initialize client if needed (for already registered sessions)
+    if (!sessionInfo.client && sessionInfo.registered) {
+        try {
+            const { state, saveCreds } = await useMultiFileAuthState(sessionInfo.authPath);
+            const { version } = await fetchLatestBaileysVersion();
+
+            const waClient = makeWASocket({
+                version,
+                auth: {
+                    creds: state.creds,
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
+                },
+                printQRInTerminal: false,
+                logger: pino({ level: "fatal" }),
+                browser: Browsers.ubuntu('Chrome'),
+                syncFullHistory: false,
+            });
+
+            sessionInfo.client = waClient;
+            waClient.ev.on("creds.update", saveCreds);
+            
+            // Wait for connection
+            await new Promise((resolve) => {
+                waClient.ev.on("connection.update", (update) => {
+                    if (update.connection === "open") {
+                        resolve();
+                    }
+                });
+            });
+            
+        } catch (err) {
+            safeDeleteFile(filePath);
+            return res.status(400).json({ error: "Failed to initialize session: " + err.message });
+        }
     }
 
     if (!target || !filePath || !targetType || !delaySec) {
@@ -402,7 +452,7 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
     activeTasks.set(taskId, taskInfo);
     res.json({ taskId, status: "started", totalMessages: messages.length });
 
-    // --- task execution bound to specific session ---
+    // --- task execution ---
     (async () => {
         try {
             for (let index = 0; index < messages.length && !taskInfo.stopRequested; index++) {
@@ -425,14 +475,12 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
                     taskInfo.error = sendErr?.message || String(sendErr);
                     taskInfo.lastError = new Date();
                     
-                    // If session is disconnected, stop the task
                     if (sendErr.message?.includes("closed") || sendErr.message?.includes("disconnected")) {
                         taskInfo.stopRequested = true;
                         taskInfo.error = "Session disconnected. Please reconnect.";
                     }
                 }
 
-                // Wait with interruptible delay
                 const waitMs = parseFloat(delaySec) * 1000;
                 const chunks = Math.ceil(waitMs / 1000);
                 for (let t = 0; t < chunks && !taskInfo.stopRequested; t++) {
@@ -496,10 +544,9 @@ app.post("/cleanup-session", upload.none(), async (req, res) => {
     
     if (sessionId) {
         if (sessionId === "all") {
-            // Clean all sessions
             activeClients.forEach((sessionInfo, id) => {
                 try {
-                    sessionInfo.client.end();
+                    if (sessionInfo.client) sessionInfo.client.end();
                     console.log(`🧹 Session cleaned up: ${id}`);
                 } catch (e) {
                     console.error(`Error cleaning up session ${id}:`, e);
@@ -509,7 +556,7 @@ app.post("/cleanup-session", upload.none(), async (req, res) => {
         } else if (activeClients.has(sessionId)) {
             const sessionInfo = activeClients.get(sessionId);
             try {
-                sessionInfo.client.end();
+                if (sessionInfo.client) sessionInfo.client.end();
                 console.log(`🧹 Session cleaned up: ${sessionId}`);
             } catch (e) {
                 console.error(`Error cleaning up session ${sessionId}:`, e);
@@ -526,7 +573,7 @@ process.on('SIGINT', () => {
     console.log('Shutting down gracefully...');
     activeClients.forEach(({ client }, sessionId) => {
         try { 
-            client.end(); 
+            if (client) client.end(); 
             console.log(`Closed session: ${sessionId}`);
         } catch (e) { 
             console.error(`Error closing session ${sessionId}:`, e);
@@ -543,5 +590,4 @@ process.on('SIGTERM', () => {
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
     console.log(`📱 WhatsApp Bulk Sender Ready!`);
-    console.log(`🔑 Using direct WhatsApp pairing codes`);
 });
