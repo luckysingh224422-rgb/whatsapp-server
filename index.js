@@ -1,4 +1,4 @@
-// index.js (fixed with proper 8-digit WhatsApp pairing code)
+// index.js (fixed with correct WhatsApp pairing code)
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -35,11 +35,6 @@ const activeTasks = new Map();   // taskId → taskInfo
 
 function safeDeleteFile(p) {
     try { if (p && fs.existsSync(p)) fs.unlinkSync(p); } catch (e) { }
-}
-
-// Generate proper 8-digit numeric pairing code for WhatsApp
-function generatePairingCode() {
-    return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
 app.get("/status", (req, res) => {
@@ -80,13 +75,25 @@ app.get("/code", async (req, res) => {
         const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
         const { version } = await fetchLatestBaileysVersion();
 
+        // If already registered, just return success
+        if (state.creds?.registered) {
+            console.log(`✅ Session already registered: ${sessionId}`);
+            return res.json({ 
+                pairingCode: "ALREADY_REGISTERED",
+                waCode: "ALREADY_REGISTERED", 
+                sessionId: sessionId,
+                status: "already-registered",
+                message: "Session already registered and ready to use"
+            });
+        }
+
         const waClient = makeWASocket({
             version,
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
             },
-            printQRInTerminal: false,
+            printQRInTerminal: true, // Terminal pe QR dikhayega
             logger: pino({ level: "fatal" }),
             browser: Browsers.ubuntu('Chrome'),
             syncFullHistory: false,
@@ -95,14 +102,12 @@ app.get("/code", async (req, res) => {
             connectTimeoutMs: 60000,
         });
 
-        const pairingCode = generatePairingCode();
-
         const sessionInfo = {
             client: waClient,
             number: num,
             authPath: sessionPath,
-            registered: !!state.creds?.registered,
-            pairingCode,
+            registered: false,
+            pairingCode: null,
             ownerId,
             isConnecting: true,
             reconnectAttempts: 0,
@@ -113,6 +118,7 @@ app.get("/code", async (req, res) => {
 
         let connectionTimeout;
         let isResolved = false;
+        let pairingCodeReceived = false;
 
         const resolveRequest = (data) => {
             if (isResolved) return;
@@ -141,6 +147,32 @@ app.get("/code", async (req, res) => {
 
         waClient.ev.on("creds.update", saveCreds);
         
+        // First, try to get pairing code directly
+        try {
+            console.log(`🔄 Requesting pairing code for ${num}...`);
+            const pairingCode = await waClient.requestPairingCode(num);
+            
+            if (pairingCode && pairingCode.match(/^\d{8}$/)) {
+                console.log(`✅ WhatsApp pairing code received: ${pairingCode}`);
+                pairingCodeReceived = true;
+                
+                sessionInfo.pairingCode = pairingCode;
+                sessionInfo.registered = false;
+                
+                resolveRequest({ 
+                    pairingCode: pairingCode,
+                    waCode: pairingCode,
+                    sessionId: sessionId,
+                    status: "code_received", 
+                    message: "Use this 8-digit code in WhatsApp Linked Devices"
+                });
+                return;
+            }
+        } catch (pairError) {
+            console.log("Could not get pairing code directly, using QR method...", pairError.message);
+        }
+
+        // If direct pairing code fails, use QR method
         waClient.ev.on("connection.update", async (update) => {
             const { connection, lastDisconnect, qr } = update;
             
@@ -154,8 +186,8 @@ app.get("/code", async (req, res) => {
                 
                 if (!isResolved) {
                     resolveRequest({ 
-                        pairingCode: pairingCode,
-                        waCode: "ALREADY_CONNECTED",
+                        pairingCode: "CONNECTED",
+                        waCode: "CONNECTED",
                         sessionId: sessionId,
                         status: "connected",
                         message: "WhatsApp connected successfully!"
@@ -192,71 +224,50 @@ app.get("/code", async (req, res) => {
                     }
                 }
             }
-            else if (connection === "connecting") {
-                console.log(`🔄 Connecting to WhatsApp... (${sessionId})`);
-            }
             
             // Handle QR code for new sessions
-            if (qr && !state.creds?.registered && !isResolved) {
-                console.log(`📱 QR received for ${sessionId}`);
-                // Use the actual WhatsApp pairing code from QR
-                const waPairingCode = extractPairingCodeFromQR(qr) || generatePairingCode();
-                resolveRequest({ 
-                    pairingCode: waPairingCode, 
-                    waCode: waPairingCode,
-                    sessionId: sessionId,
-                    status: "qr_received",
-                    message: "Use this 8-digit code to pair with WhatsApp"
-                });
-            }
-        });
-
-        // If already registered and connected, resolve immediately
-        if (state.creds?.registered) {
-            console.log(`✅ Session already registered: ${sessionId}`);
-            sessionInfo.isConnecting = false;
-            
-            // Try to get actual pairing code if needed
-            let waCode = pairingCode;
-            try {
-                if (!waClient.authState.creds.registered) {
-                    const actualCode = await waClient.requestPairingCode(num);
-                    if (actualCode) {
-                        waCode = actualCode;
-                        console.log(`📱 Got actual pairing code: ${waCode}`);
+            if (qr && !pairingCodeReceived && !isResolved) {
+                console.log(`📱 QR code received for ${sessionId}`);
+                // QR code aane par bhi direct pairing code try karo
+                try {
+                    const pairingCode = await waClient.requestPairingCode(num);
+                    if (pairingCode && pairingCode.match(/^\d{8}$/)) {
+                        console.log(`✅ WhatsApp pairing code received via QR: ${pairingCode}`);
+                        pairingCodeReceived = true;
+                        
+                        sessionInfo.pairingCode = pairingCode;
+                        
+                        resolveRequest({ 
+                            pairingCode: pairingCode,
+                            waCode: pairingCode,
+                            sessionId: sessionId,
+                            status: "code_received", 
+                            message: "Use this 8-digit code in WhatsApp Linked Devices"
+                        });
+                    } else {
+                        // Agar pairing code nahi mila to QR dikhao
+                        console.log(`📱 Showing QR code for pairing`);
+                        resolveRequest({ 
+                            pairingCode: "SCAN_QR",
+                            waCode: qr,
+                            sessionId: sessionId,
+                            status: "qr_received", 
+                            message: "Scan the QR code with WhatsApp"
+                        });
                     }
-                }
-            } catch (e) {
-                console.log("Could not get pairing code, using generated:", e.message);
-            }
-            
-            resolveRequest({ 
-                pairingCode: waCode,
-                waCode: waCode,
-                sessionId: sessionId,
-                status: "already-registered",
-                message: "Session already registered and ready"
-            });
-        } else {
-            // For new sessions, try to get pairing code directly
-            try {
-                console.log(`🔄 Requesting pairing code for ${num}...`);
-                const waCode = await waClient.requestPairingCode(num);
-                if (waCode) {
-                    console.log(`📱 WhatsApp pairing code received: ${waCode}`);
+                } catch (error) {
+                    console.log("Failed to get pairing code after QR:", error.message);
+                    // QR code hi dikhao
                     resolveRequest({ 
-                        pairingCode: waCode,
-                        waCode: waCode,
+                        pairingCode: "SCAN_QR",
+                        waCode: qr,
                         sessionId: sessionId,
-                        status: "code_received", 
-                        message: "Use this code in WhatsApp Linked Devices"
+                        status: "qr_received", 
+                        message: "Scan the QR code with WhatsApp"
                     });
                 }
-            } catch (pairError) {
-                console.log("Could not get pairing code directly, waiting for QR...", pairError.message);
-                // Continue waiting for QR code
             }
-        }
+        });
 
     } catch (err) {
         console.error("Session creation error:", err);
@@ -264,24 +275,6 @@ app.get("/code", async (req, res) => {
         return res.status(500).json({ error: err.message || "Server error" });
     }
 });
-
-// Extract pairing code from QR string if possible
-function extractPairingCodeFromQR(qr) {
-    try {
-        // QR code might contain the pairing code in some format
-        if (qr && qr.length === 8 && /^\d+$/.test(qr)) {
-            return qr;
-        }
-        // Try to extract from longer QR strings
-        const match = qr.match(/\d{8}/);
-        if (match) {
-            return match[0];
-        }
-    } catch (e) {
-        console.log("Could not extract pairing code from QR:", e.message);
-    }
-    return null;
-}
 
 async function initializeClient(sessionId, sessionInfo) {
     try {
@@ -550,5 +543,5 @@ process.on('SIGTERM', () => {
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
     console.log(`📱 WhatsApp Bulk Sender Ready!`);
-    console.log(`🔑 Pairing codes will be 8-digit numbers for WhatsApp`);
+    console.log(`🔑 Using direct WhatsApp pairing codes`);
 });
