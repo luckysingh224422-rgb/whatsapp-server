@@ -3,71 +3,466 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Bulk Sender</title>
+    <title>Aahan WhatsApp Server</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .card { background: #f8f9fa; padding: 20px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; }
-        input, select, button { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { background: #25D366; color: white; border: none; cursor: pointer; }
-        button:hover { background: #128C7E; }
-        .stop-btn { background: #dc3545; }
-        .stop-btn:hover { background: #c82333; }
-        .task-id { background: #2d3748; color: white; padding: 10px; border-radius: 5px; font-family: monospace; margin: 10px 0; }
-        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
-        .info { background: #cce7ff; color: #004085; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            animation: float 20s linear infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-20px, -20px) rotate(360deg); }
+        }
+
+        .logo {
+            font-size: 3.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tagline {
+            font-size: 1.3em;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            border-radius: 15px;
+            padding: 30px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #25D366, #128C7E);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            color: #25D366;
+            margin-bottom: 25px;
+            font-size: 1.6em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2::before {
+            content: '✓';
+            background: #25D366;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.95em;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #25D366;
+            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
+            transform: translateY(-2px);
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(37, 211, 102, 0.3);
+        }
+
+        button:active {
+            transform: translateY(-1px);
+        }
+
+        .stop-btn {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .stop-btn:hover {
+            box-shadow: 0 10px 25px rgba(220, 53, 69, 0.3);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px dashed #cbd5e0;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #718096;
+        }
+
+        .file-input:hover {
+            border-color: #25D366;
+            background: #f0fff4;
+            color: #25D366;
+        }
+
+        .status-box {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 10px;
+            min-height: 80px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .task-id {
+            background: #2d3748;
+            color: #68d391;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            text-align: center;
+            margin: 15px 0;
+            border: 2px solid #4a5568;
+            word-break: break-all;
+        }
+
+        .success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .error {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .info {
+            background: linear-gradient(135deg, #cce7ff, #b3d9ff);
+            color: #004085;
+            border: 2px solid #b3d9ff;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #25D366, #48bb78);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .progress::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        small {
+            color: #718096;
+            font-size: 0.85em;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .section-number {
+            background: #25D366;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .logo {
+                font-size: 2.5em;
+            }
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f0fff4;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>WhatsApp Bulk Sender</h1>
+        <div class="header">
+            <div class="logo">AAHAN</div>
+            <div class="tagline">WHATSAPP SERVER PANEL</div>
+        </div>
         
-        <!-- Session Management -->
-        <div class="card">
-            <h2>1. Setup Session</h2>
-            <input type="text" id="ownerId" placeholder="Owner ID" value="user1">
-            <input type="text" id="number" placeholder="WhatsApp Number (e.g., 919876543210)">
-            <button onclick="requestPairingCode()">Get Pairing Code</button>
-            <div id="pairingResult" class="status"></div>
-        </div>
+        <div class="content">
+            <!-- Session Management -->
+            <div class="card">
+                <h2><span class="section-number">1</span>Session Setup</h2>
+                <div class="form-group">
+                    <label for="ownerId">Owner ID:</label>
+                    <input type="text" id="ownerId" placeholder="Enter your unique owner ID" value="user1">
+                </div>
+                <div class="form-group">
+                    <label for="number">WhatsApp Number:</label>
+                    <input type="text" id="number" placeholder="e.g., 919876543210">
+                </div>
+                <button onclick="requestPairingCode()" id="pairBtn">
+                    🔗 Generate Pairing Code
+                </button>
+                <div id="pairingResult" class="status-box"></div>
+            </div>
 
-        <!-- Send Messages -->
-        <div class="card">
-            <h2>2. Send Messages</h2>
-            <select id="sessionSelect">
-                <option value="">-- Select Session --</option>
-            </select>
-            <input type="text" id="target" placeholder="Target Number/Group">
-            <select id="targetType">
-                <option value="individual">Individual</option>
-                <option value="group">Group</option>
-            </select>
-            <input type="file" id="messageFile" accept=".txt">
-            <small>Text file with one message per line</small>
-            <input type="text" id="prefix" placeholder="Message Prefix (Optional)">
-            <input type="number" id="delaySec" value="2" placeholder="Delay in seconds">
-            <button onclick="startSending()">Start Sending</button>
-            <div id="taskResult" class="status"></div>
-        </div>
+            <!-- Send Messages -->
+            <div class="card">
+                <h2><span class="section-number">2</span>Send Messages</h2>
+                <div class="form-group">
+                    <label for="sessionSelect">Select Session:</label>
+                    <select id="sessionSelect">
+                        <option value="">-- Choose connected session --</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="target">Target Number/Group:</label>
+                    <input type="text" id="target" placeholder="e.g., 919876543210 or group-id">
+                </div>
+                
+                <div class="form-group">
+                    <label for="targetType">Message Type:</label>
+                    <select id="targetType">
+                        <option value="individual">📱 Individual Message</option>
+                        <option value="group">👥 Group Message</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="messageFile">Message File:</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="messageFile" accept=".txt" class="file-input">
+                    </div>
+                    <small>Upload a .txt file with one message per line</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="prefix">Message Prefix (Optional):</label>
+                    <input type="text" id="prefix" placeholder="e.g., Hello! ">
+                </div>
+                
+                <div class="form-group">
+                    <label for="delaySec">Delay Between Messages (seconds):</label>
+                    <input type="number" id="delaySec" value="2" min="1" max="60">
+                </div>
+                
+                <button onclick="startSending()">
+                    🚀 START
+                </button>
+                <div id="taskResult" class="status-box"></div>
+            </div>
 
-        <!-- Stop Task -->
-        <div class="card">
-            <h2>3. Stop Task</h2>
-            <input type="text" id="stopTaskId" placeholder="Enter Task ID to stop">
-            <button onclick="stopTask()" class="stop-btn">Stop This Task</button>
-            <button onclick="stopAllTasks()" class="stop-btn">Stop All Tasks</button>
-            <div id="stopResult" class="status"></div>
-        </div>
+            <!-- Stop Task -->
+            <div class="card">
+                <h2><span class="section-number">3</span>Task Control</h2>
+                <div class="form-group">
+                    <label for="stopTaskId">Task ID to Stop:</label>
+                    <input type="text" id="stopTaskId" placeholder="Enter Task ID from above">
+                </div>
+                <button onclick="stopTask()" class="stop-btn">
+                    🛑 Stop This Task
+                </button>
+                <div id="stopResult" class="status-box"></div>
+            </div>
 
-        <!-- Task Status -->
-        <div class="card">
-            <h2>4. Check Status</h2>
-            <input type="text" id="statusTaskId" placeholder="Enter Task ID to check status">
-            <button onclick="checkTaskStatus()">Check Status</button>
-            <button onclick="listAllTasks()">List All Tasks</button>
-            <div id="statusResult" class="status"></div>
+            <!-- Task Status -->
+            <div class="card">
+                <h2><span class="section-number">4</span>Monitor Tasks</h2>
+                <div class="form-group">
+                    <label for="statusTaskId">Check Task Status:</label>
+                    <input type="text" id="statusTaskId" placeholder="Enter Task ID to check progress">
+                </div>
+                <div class="form-group">
+                    <button onclick="checkTaskStatus()">📊 Check Status</button>
+                    <button onclick="listAllTasks()" style="margin-top: 10px; background: linear-gradient(135deg, #6c757d, #495057);">
+                        📋 List All Tasks
+                    </button>
+                </div>
+                <div id="statusResult" class="status-box"></div>
+            </div>
         </div>
     </div>
 
@@ -76,11 +471,15 @@
         async function requestPairingCode() {
             const number = document.getElementById('number').value;
             const ownerId = document.getElementById('ownerId').value;
+            const pairBtn = document.getElementById('pairBtn');
             
             if (!number) {
-                showResult('pairingResult', 'Please enter WhatsApp number', 'error');
+                showResult('pairingResult', '❌ Please enter WhatsApp number', 'error');
                 return;
             }
+
+            pairBtn.disabled = true;
+            pairBtn.innerHTML = '⏳ Connecting...';
 
             try {
                 const response = await fetch(`/code?number=${number}&ownerId=${ownerId}`);
@@ -88,15 +487,18 @@
                 
                 if (response.ok) {
                     showResult('pairingResult', 
-                        `Pairing Code: ${result.pairingCode}<br>Status: ${result.message}`, 
+                        `✅ <strong>Pairing Code: ${result.pairingCode}</strong><br>📱 ${result.message}`, 
                         'success'
                     );
                     refreshSessions();
                 } else {
-                    showResult('pairingResult', 'Error: ' + result.error, 'error');
+                    showResult('pairingResult', '❌ Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                showResult('pairingResult', 'Error: ' + error.message, 'error');
+                showResult('pairingResult', '❌ Error: ' + error.message, 'error');
+            } finally {
+                pairBtn.disabled = false;
+                pairBtn.innerHTML = '🔗 Generate Pairing Code';
             }
         }
 
@@ -106,7 +508,7 @@
             const fileInput = document.getElementById('messageFile');
             
             if (!sessionId || !target || !fileInput.files[0]) {
-                showResult('taskResult', 'Please fill all fields and select file', 'error');
+                showResult('taskResult', '❌ Please fill all fields and select message file', 'error');
                 return;
             }
 
@@ -125,15 +527,18 @@
                 
                 if (response.ok) {
                     showResult('taskResult', 
-                        `✅ Task Started!<br>Task ID: <strong>${result.taskId}</strong><br>${result.message}`, 
+                        `✅ <strong>Task Started Successfully!</strong><br>
+                         📨 Task ID: <div class="task-id">${result.taskId}</div>
+                         💬 ${result.message}`, 
                         'success'
                     );
                     document.getElementById('stopTaskId').value = result.taskId;
+                    document.getElementById('statusTaskId').value = result.taskId;
                 } else {
-                    showResult('taskResult', 'Error: ' + result.error, 'error');
+                    showResult('taskResult', '❌ Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                showResult('taskResult', 'Error: ' + error.message, 'error');
+                showResult('taskResult', '❌ Error: ' + error.message, 'error');
             }
         }
 
@@ -141,7 +546,11 @@
             const taskId = document.getElementById('stopTaskId').value;
             
             if (!taskId) {
-                showResult('stopResult', 'Please enter Task ID', 'error');
+                showResult('stopResult', '❌ Please enter Task ID', 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to stop task: ${taskId}?`)) {
                 return;
             }
 
@@ -155,42 +564,16 @@
                 
                 if (response.ok) {
                     showResult('stopResult', 
-                        `✅ Task Stopped!<br>Task ID: ${result.taskId}<br>Progress: ${result.sentMessages}/${result.totalMessages} messages`, 
+                        `✅ <strong>Task Stopped Successfully!</strong><br>
+                         📨 Task ID: ${result.taskId}<br>
+                         📊 Progress: ${result.sentMessages}/${result.totalMessages} messages sent`, 
                         'success'
                     );
                 } else {
-                    showResult('stopResult', 'Error: ' + result.error, 'error');
+                    showResult('stopResult', '❌ Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                showResult('stopResult', 'Error: ' + error.message, 'error');
-            }
-        }
-
-        async function stopAllTasks() {
-            try {
-                const response = await fetch('/tasks');
-                const result = await response.json();
-                
-                if (result.activeTasks.length === 0) {
-                    showResult('stopResult', 'No active tasks found', 'info');
-                    return;
-                }
-
-                let stopped = 0;
-                for (const task of result.activeTasks) {
-                    if (task.isSending) {
-                        await fetch('/stop-task', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: `taskId=${task.taskId}`
-                        });
-                        stopped++;
-                    }
-                }
-                
-                showResult('stopResult', `Stopped ${stopped} tasks`, 'success');
-            } catch (error) {
-                showResult('stopResult', 'Error: ' + error.message, 'error');
+                showResult('stopResult', '❌ Error: ' + error.message, 'error');
             }
         }
 
@@ -198,7 +581,7 @@
             const taskId = document.getElementById('statusTaskId').value;
             
             if (!taskId) {
-                showResult('statusResult', 'Please enter Task ID', 'error');
+                showResult('statusResult', '❌ Please enter Task ID', 'error');
                 return;
             }
 
@@ -207,15 +590,27 @@
                 const result = await response.json();
                 
                 if (response.ok) {
+                    const progressBar = result.totalMessages > 0 ? 
+                        `<div class="progress-bar">
+                            <div class="progress" style="width: ${result.progress}%"></div>
+                         </div>` : '';
+                    
                     showResult('statusResult', 
-                        `Task ID: ${result.taskId}<br>Status: ${result.status}<br>Progress: ${result.sentMessages}/${result.totalMessages} (${result.progress}%)<br>Start Time: ${new Date(result.startTime).toLocaleString()}`, 
+                        `📊 <strong>Task Status Report</strong><br>
+                         📨 Task ID: ${result.taskId}<br>
+                         🎯 Status: ${result.status.toUpperCase()}<br>
+                         📈 Progress: ${result.sentMessages}/${result.totalMessages} (${result.progress}%)<br>
+                         ${progressBar}
+                         ⏰ Start Time: ${new Date(result.startTime).toLocaleString()}<br>
+                         ${result.endTime ? `⏹️ End Time: ${new Date(result.endTime).toLocaleString()}<br>` : ''}
+                         ${result.error ? `❌ Error: ${result.error}` : ''}`, 
                         'info'
                     );
                 } else {
-                    showResult('statusResult', 'Error: ' + result.error, 'error');
+                    showResult('statusResult', '❌ Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                showResult('statusResult', 'Error: ' + error.message, 'error');
+                showResult('statusResult', '❌ Error: ' + error.message, 'error');
             }
         }
 
@@ -225,18 +620,25 @@
                 const result = await response.json();
                 
                 if (result.activeTasks.length === 0) {
-                    showResult('statusResult', 'No active tasks', 'info');
+                    showResult('statusResult', 'ℹ️ No active tasks found', 'info');
                     return;
                 }
 
-                let html = `<strong>Active Tasks (${result.total}):</strong><br>`;
+                let html = `<strong>📋 Active Tasks (${result.total}):</strong><br><br>`;
                 result.activeTasks.forEach(task => {
-                    html += `Task: ${task.taskId} | Status: ${task.isSending ? 'Sending' : 'Stopped'} | Progress: ${task.sentMessages}/${task.totalMessages}<br>`;
+                    const status = task.isSending ? '🟢 SENDING' : '🔴 STOPPED';
+                    const progress = Math.round((task.sentMessages / task.totalMessages) * 100);
+                    html += `
+                        <div style="background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 5px;">
+                            <strong>${task.taskId}</strong><br>
+                            Status: ${status} | Progress: ${task.sentMessages}/${task.totalMessages} (${progress}%)<br>
+                            Target: ${task.target}
+                        </div>`;
                 });
                 
                 showResult('statusResult', html, 'info');
             } catch (error) {
-                showResult('statusResult', 'Error: ' + error.message, 'error');
+                showResult('statusResult', '❌ Error: ' + error.message, 'error');
             }
         }
 
@@ -246,12 +648,12 @@
                 const data = await response.json();
                 
                 const select = document.getElementById('sessionSelect');
-                select.innerHTML = '<option value="">-- Select Session --</option>';
+                select.innerHTML = '<option value="">-- Choose connected session --</option>';
                 
                 data.activeSessions.forEach(session => {
                     const option = document.createElement('option');
                     option.value = session.sessionId;
-                    option.textContent = `${session.number} (${session.registered ? 'Connected' : 'Pending'})`;
+                    option.textContent = `${session.number} (${session.registered ? '✅ Connected' : '⏳ Pending'}) - ${session.pairingCode}`;
                     select.appendChild(option);
                 });
             } catch (error) {
@@ -262,11 +664,14 @@
         function showResult(elementId, message, type) {
             const element = document.getElementById(elementId);
             element.innerHTML = message;
-            element.className = `status ${type}`;
+            element.className = `status-box ${type}`;
         }
 
         // Initial load
         refreshSessions();
+        
+        // Auto-refresh sessions every 30 seconds
+        setInterval(refreshSessions, 30000);
     </script>
 </body>
 </html>
