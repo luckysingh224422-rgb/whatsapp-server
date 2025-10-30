@@ -1,4 +1,4 @@
-// index.js (fixed with proper alphanumeric WhatsApp pairing code)
+// index.js (with simple task stop feature)
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -30,14 +30,13 @@ app.get("/", (req, res) => {
 });
 
 // --- SESSION MANAGEMENT ---
-const activeClients = new Map(); // sessionId → { client, number, authPath, pairingCode, ownerId, isConnecting }
-const activeTasks = new Map();   // taskId → taskInfo
+const activeClients = new Map();
+const activeTasks = new Map();
 
 function safeDeleteFile(p) {
     try { if (p && fs.existsSync(p)) fs.unlinkSync(p); } catch (e) { }
 }
 
-// Generate alphanumeric display code
 function generateDisplayCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
@@ -75,7 +74,6 @@ app.get("/code", async (req, res) => {
     const sessionId = `session_${num}_${ownerId}`;
     const sessionPath = path.join("temp", sessionId);
     
-    // Check if session already exists
     const existingSession = activeClients.get(sessionId);
     if (existingSession) {
         if (existingSession.isConnecting) {
@@ -98,7 +96,6 @@ app.get("/code", async (req, res) => {
         const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
         const { version } = await fetchLatestBaileysVersion();
 
-        // If already registered, return success
         if (state.creds?.registered) {
             const displayCode = generateDisplayCode();
             const sessionInfo = {
@@ -172,7 +169,6 @@ app.get("/code", async (req, res) => {
             res.status(500).json({ error });
         };
 
-        // Set timeout for connection (2 minutes)
         connectionTimeout = setTimeout(() => {
             if (!isResolved) {
                 console.log(`⏰ Connection timeout for ${sessionId}`);
@@ -233,14 +229,11 @@ app.get("/code", async (req, res) => {
                 }
             }
             
-            // Handle QR code - this is where we get the actual WhatsApp pairing code
             if (qr && !isResolved) {
                 console.log(`📱 QR code received for ${sessionId}`);
                 
-                // Try multiple methods to get pairing code
                 let actualPairingCode = null;
                 
-                // Method 1: Try requestPairingCode API
                 try {
                     console.log(`🔄 Attempting to get pairing code via API...`);
                     actualPairingCode = await waClient.requestPairingCode(num);
@@ -251,11 +244,8 @@ app.get("/code", async (req, res) => {
                     console.log(`❌ API method failed:`, apiError.message);
                 }
                 
-                // Method 2: Extract from QR code if API fails
                 if (!actualPairingCode && qr) {
                     try {
-                        // WhatsApp QR codes often contain the pairing code
-                        // Try to extract alphanumeric code from QR
                         const qrMatch = qr.match(/[A-Z0-9]{6,8}/);
                         if (qrMatch) {
                             actualPairingCode = qrMatch[0];
@@ -266,13 +256,11 @@ app.get("/code", async (req, res) => {
                     }
                 }
                 
-                // Method 3: Use the QR directly if it looks like a pairing code
                 if (!actualPairingCode && qr && qr.length >= 6 && qr.length <= 8) {
                     actualPairingCode = qr;
                     console.log(`✅ Using QR as pairing code: ${actualPairingCode}`);
                 }
                 
-                // Update session info with actual code
                 if (actualPairingCode) {
                     sessionInfo.pairingCode = actualPairingCode;
                     
@@ -284,7 +272,6 @@ app.get("/code", async (req, res) => {
                         message: `Use this code in WhatsApp Linked Devices: ${actualPairingCode}`
                     });
                 } else {
-                    // Fallback: Show QR code
                     resolveRequest({ 
                         pairingCode: sessionInfo.pairingCode,
                         waCode: qr,
@@ -296,7 +283,6 @@ app.get("/code", async (req, res) => {
             }
         });
 
-        // Try to get pairing code immediately after connection
         setTimeout(async () => {
             if (!isResolved) {
                 try {
@@ -389,7 +375,7 @@ async function initializeClient(sessionId, sessionInfo) {
     }
 }
 
-// --- SEND MESSAGE (task-specific) ---
+// --- SEND MESSAGE ---
 app.post("/send-message", upload.single("messageFile"), async (req, res) => {
     const { sessionId, target, targetType, delaySec, prefix, ownerId } = req.body;
     const filePath = req.file?.path;
@@ -405,7 +391,6 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
         return res.status(400).json({ error: "Session not ready. Please wait for connection." });
     }
 
-    // Initialize client if needed
     if (!sessionInfo.client && sessionInfo.registered) {
         try {
             const { state, saveCreds } = await useMultiFileAuthState(sessionInfo.authPath);
@@ -426,7 +411,6 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
             sessionInfo.client = waClient;
             waClient.ev.on("creds.update", saveCreds);
             
-            // Wait for connection
             await new Promise((resolve) => {
                 waClient.ev.on("connection.update", (update) => {
                     if (update.connection === "open") {
@@ -447,7 +431,9 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
     }
 
     const { client: waClient } = sessionInfo;
-    const taskId = `${ownerId || "defaultUser"}_task_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    
+    // SIMPLE TASK ID - Easy to remember and use for stopping
+    const taskId = `TASK_${Date.now()}`;
 
     let messages;
     try {
@@ -474,9 +460,23 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
     };
 
     activeTasks.set(taskId, taskInfo);
-    res.json({ taskId, status: "started", totalMessages: messages.length });
+    
+    // RETURN TASK ID CLEARLY - This is what you need to stop the task
+    res.json({ 
+        success: true,
+        taskId: taskId,
+        status: "started", 
+        totalMessages: messages.length,
+        message: `📨 Task STARTED! Use this ID to stop: ${taskId}`
+    });
 
-    // --- task execution ---
+    console.log(`🚀 Task STARTED: ${taskId}`);
+    console.log(`📝 Messages: ${messages.length}`);
+    console.log(`🎯 Target: ${target}`);
+    console.log(`⏰ Delay: ${delaySec}s`);
+    console.log(`🛑 STOP COMMAND: curl -X POST http://localhost:${PORT}/stop-task -d "taskId=${taskId}"`);
+
+    // Task execution
     (async () => {
         try {
             for (let index = 0; index < messages.length && !taskInfo.stopRequested; index++) {
@@ -492,7 +492,11 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
 
                     taskInfo.sentMessages++;
                     taskInfo.lastUpdate = new Date();
-                    console.log(`[${taskId}] Sent → ${taskInfo.target} (${taskInfo.sentMessages}/${taskInfo.totalMessages})`);
+                    
+                    // Show progress every 10 messages
+                    if (taskInfo.sentMessages % 10 === 0 || taskInfo.sentMessages === taskInfo.totalMessages) {
+                        console.log(`[${taskId}] Progress: ${taskInfo.sentMessages}/${taskInfo.totalMessages} messages sent`);
+                    }
                     
                 } catch (sendErr) {
                     console.error(`[${taskId}] Send error:`, sendErr);
@@ -518,7 +522,17 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
             taskInfo.isSending = false;
             taskInfo.completed = !taskInfo.stopRequested;
             safeDeleteFile(filePath);
-            console.log(`[${taskId}] Finished. Sent: ${taskInfo.sentMessages}/${taskInfo.totalMessages}`);
+            
+            const status = taskInfo.stopRequested ? "STOPPED" : "COMPLETED";
+            console.log(`[${taskId}] ${status}: ${taskInfo.sentMessages}/${taskInfo.totalMessages} messages sent`);
+            
+            // Keep task in memory for 10 minutes for status checking
+            setTimeout(() => {
+                if (activeTasks.has(taskId)) {
+                    activeTasks.delete(taskId);
+                    console.log(`[${taskId}] Removed from memory`);
+                }
+            }, 600000);
         }
     })();
 });
@@ -526,55 +540,103 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
 // --- TASK STATUS ---
 app.get("/task-status", (req, res) => {
     const taskId = req.query.taskId;
-    if (!taskId || !activeTasks.has(taskId)) return res.status(400).json({ error: "Invalid Task ID" });
-    res.json(activeTasks.get(taskId));
-});
-
-// --- STOP TASK ---
-app.post("/stop-task", upload.none(), async (req, res) => {
-    const taskId = req.body.taskId;
-    if (!taskId || !activeTasks.has(taskId)) return res.status(400).json({ error: "Invalid Task ID" });
+    if (!taskId) return res.status(400).json({ error: "Task ID is required" });
+    
+    if (!activeTasks.has(taskId)) {
+        return res.status(404).json({ error: "Task not found. It may be completed or never existed." });
+    }
 
     const taskInfo = activeTasks.get(taskId);
+    res.json({
+        taskId: taskInfo.taskId,
+        status: taskInfo.isSending ? "sending" : (taskInfo.stopRequested ? "stopped" : "completed"),
+        sentMessages: taskInfo.sentMessages,
+        totalMessages: taskInfo.totalMessages,
+        progress: Math.round((taskInfo.sentMessages / taskInfo.totalMessages) * 100),
+        startTime: taskInfo.startTime,
+        endTime: taskInfo.endTime,
+        error: taskInfo.error
+    });
+});
+
+// --- STOP TASK (SIMPLE VERSION) ---
+app.post("/stop-task", upload.none(), async (req, res) => {
+    const { taskId } = req.body;
+    
+    if (!taskId) {
+        return res.status(400).json({ error: "Task ID is required. Example: taskId=TASK_123456789" });
+    }
+    
+    if (!activeTasks.has(taskId)) {
+        return res.status(404).json({ error: `Task ${taskId} not found. It may be already completed or never existed.` });
+    }
+
+    const taskInfo = activeTasks.get(taskId);
+    
+    if (!taskInfo.isSending) {
+        return res.json({ 
+            success: true, 
+            message: `Task ${taskId} is already ${taskInfo.stopRequested ? 'stopped' : 'completed'}` 
+        });
+    }
+    
     taskInfo.stopRequested = true;
     taskInfo.isSending = false;
     taskInfo.endTime = new Date();
     taskInfo.endedBy = "user";
 
-    return res.json({ success: true, message: `Task ${taskId} stop requested` });
+    console.log(`🛑 Task STOPPED: ${taskId}`);
+    console.log(`📊 Final progress: ${taskInfo.sentMessages}/${taskInfo.totalMessages} messages sent`);
+
+    return res.json({ 
+        success: true, 
+        message: `Task ${taskId} stopped successfully`,
+        taskId: taskId,
+        sentMessages: taskInfo.sentMessages,
+        totalMessages: taskInfo.totalMessages,
+        progress: Math.round((taskInfo.sentMessages / taskInfo.totalMessages) * 100)
+    });
+});
+
+// --- LIST ALL ACTIVE TASKS ---
+app.get("/tasks", (req, res) => {
+    const tasks = [...activeTasks.entries()]
+        .map(([id, task]) => ({
+            taskId: id,
+            sessionId: task.sessionId,
+            isSending: task.isSending,
+            sentMessages: task.sentMessages,
+            totalMessages: task.totalMessages,
+            startTime: task.startTime,
+            target: task.target,
+            progress: Math.round((task.sentMessages / task.totalMessages) * 100)
+        }));
+    
+    res.json({ 
+        activeTasks: tasks,
+        total: tasks.length
+    });
 });
 
 // --- CLEANUP ENDPOINT ---
 app.post("/cleanup-session", upload.none(), async (req, res) => {
     const { sessionId } = req.body;
     
-    if (sessionId) {
-        if (sessionId === "all") {
-            activeClients.forEach((sessionInfo, id) => {
-                try {
-                    if (sessionInfo.client) sessionInfo.client.end();
-                    console.log(`🧹 Session cleaned up: ${id}`);
-                } catch (e) {
-                    console.error(`Error cleaning up session ${id}:`, e);
-                }
-            });
-            activeClients.clear();
-        } else if (activeClients.has(sessionId)) {
-            const sessionInfo = activeClients.get(sessionId);
+    if (sessionId === "all") {
+        activeClients.forEach((sessionInfo, id) => {
             try {
                 if (sessionInfo.client) sessionInfo.client.end();
-                console.log(`🧹 Session cleaned up: ${sessionId}`);
+                console.log(`🧹 Session cleaned up: ${id}`);
             } catch (e) {
-                console.error(`Error cleaning up session ${sessionId}:`, e);
+                console.error(`Error cleaning up session ${id}:`, e);
             }
-            activeClients.delete(sessionId);
-        }
+        });
+        activeClients.clear();
     }
     
-    res.json({ success: true, message: "Session cleaned up" });
+    res.json({ success: true, message: "Sessions cleaned up" });
 });
 
-// --- GRACEFUL SHUTDOWN ---
 process.on('SIGINT', () => {
     console.log('Shutting down gracefully...');
     activeClients.forEach(({ client }, sessionId) => {
@@ -588,13 +650,8 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-    console.log('Received SIGTERM, shutting down...');
-    process.exit(0);
-});
-
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
     console.log(`📱 WhatsApp Bulk Sender Ready!`);
-    console.log(`🔑 Now generating alphanumeric pairing codes for WhatsApp`);
+    console.log(`🛑 To stop any task, use: curl -X POST http://localhost:${PORT}/stop-task -d "taskId=YOUR_TASK_ID"`);
 });
