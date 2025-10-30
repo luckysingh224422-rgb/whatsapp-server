@@ -5,442 +5,268 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp Bulk Sender</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .header {
-            background: #25D366;
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-        .content {
-            padding: 30px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-        .card {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 25px;
-            border: 1px solid #e9ecef;
-        }
-        .card h2 {
-            color: #25D366;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #495057;
-        }
-        input, select, textarea, button {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-        }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #25D366;
-            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
-        }
-        button {
-            background: #25D366;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        button:hover {
-            background: #128C7E;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3);
-        }
-        button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        .status-box {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 10px;
-            min-height: 100px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .task-status {
-            background: #e7f3ff;
-            border: 1px solid #b3d9ff;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 10px 0;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 10px;
-            background: #e9ecef;
-            border-radius: 5px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-        .progress {
-            height: 100%;
-            background: #25D366;
-            transition: width 0.3s ease;
-        }
-        .file-input {
-            padding: 10px;
-            background: white;
-            border: 2px dashed #dee2e6;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-        }
-        .file-input:hover {
-            border-color: #25D366;
-        }
-        .code-display {
-            background: #2d3748;
-            color: #68d391;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 18px;
-            text-align: center;
-            margin: 10px 0;
-        }
-        @media (max-width: 768px) {
-            .content {
-                grid-template-columns: 1fr;
-            }
-        }
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .card { background: #f8f9fa; padding: 20px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; }
+        input, select, button { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #25D366; color: white; border: none; cursor: pointer; }
+        button:hover { background: #128C7E; }
+        .stop-btn { background: #dc3545; }
+        .stop-btn:hover { background: #c82333; }
+        .task-id { background: #2d3748; color: white; padding: 10px; border-radius: 5px; font-family: monospace; margin: 10px 0; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #cce7ff; color: #004085; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>WhatsApp Bulk Sender</h1>
-            <p>Multi-session supported bulk messaging platform</p>
-        </div>
+        <h1>WhatsApp Bulk Sender</h1>
         
-        <div class="content">
-            <!-- Session Management -->
-            <div class="card">
-                <h2>Session Management</h2>
-                <div class="form-group">
-                    <label for="ownerId">Owner ID:</label>
-                    <input type="text" id="ownerId" placeholder="Enter unique owner ID" value="user123">
-                </div>
-                <div class="form-group">
-                    <label for="number">WhatsApp Number:</label>
-                    <input type="text" id="number" placeholder="e.g., 919876543210">
-                </div>
-                <button onclick="requestPairingCode()">Get Pairing Code</button>
-                
-                <div class="form-group">
-                    <label>Pairing Code:</label>
-                    <div id="pairingCode" class="code-display">-</div>
-                </div>
-                
-                <div class="form-group">
-                    <label>Status:</label>
-                    <div id="sessionStatus" class="status-box">
-                        No active sessions
-                    </div>
-                </div>
-                
-                <button onclick="refreshStatus()">Refresh Status</button>
-            </div>
+        <!-- Session Management -->
+        <div class="card">
+            <h2>1. Setup Session</h2>
+            <input type="text" id="ownerId" placeholder="Owner ID" value="user1">
+            <input type="text" id="number" placeholder="WhatsApp Number (e.g., 919876543210)">
+            <button onclick="requestPairingCode()">Get Pairing Code</button>
+            <div id="pairingResult" class="status"></div>
+        </div>
 
-            <!-- Message Sending -->
-            <div class="card">
-                <h2>Send Messages</h2>
-                <div class="form-group">
-                    <label for="sessionSelect">Select Session:</label>
-                    <select id="sessionSelect">
-                        <option value="">-- Select a session --</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="target">Target (Number/Group ID):</label>
-                    <input type="text" id="target" placeholder="e.g., 919876543210 or 123456789-123456@g.us">
-                </div>
-                
-                <div class="form-group">
-                    <label for="targetType">Target Type:</label>
-                    <select id="targetType">
-                        <option value="individual">Individual</option>
-                        <option value="group">Group</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="messageFile">Message File (TXT):</label>
-                    <input type="file" id="messageFile" accept=".txt" class="file-input">
-                    <small>One message per line</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="prefix">Message Prefix (Optional):</label>
-                    <input type="text" id="prefix" placeholder="e.g., Hello! ">
-                </div>
-                
-                <div class="form-group">
-                    <label for="delaySec">Delay between messages (seconds):</label>
-                    <input type="number" id="delaySec" value="2" min="1">
-                </div>
-                
-                <button onclick="startSending()">Start Sending</button>
-                <button onclick="stopSending()" style="background: #dc3545; margin-top: 10px;">Stop Sending</button>
-                
-                <div class="form-group">
-                    <label>Task Status:</label>
-                    <div id="taskStatus" class="status-box">
-                        No active tasks
-                    </div>
-                </div>
-            </div>
+        <!-- Send Messages -->
+        <div class="card">
+            <h2>2. Send Messages</h2>
+            <select id="sessionSelect">
+                <option value="">-- Select Session --</option>
+            </select>
+            <input type="text" id="target" placeholder="Target Number/Group">
+            <select id="targetType">
+                <option value="individual">Individual</option>
+                <option value="group">Group</option>
+            </select>
+            <input type="file" id="messageFile" accept=".txt">
+            <small>Text file with one message per line</small>
+            <input type="text" id="prefix" placeholder="Message Prefix (Optional)">
+            <input type="number" id="delaySec" value="2" placeholder="Delay in seconds">
+            <button onclick="startSending()">Start Sending</button>
+            <div id="taskResult" class="status"></div>
+        </div>
+
+        <!-- Stop Task -->
+        <div class="card">
+            <h2>3. Stop Task</h2>
+            <input type="text" id="stopTaskId" placeholder="Enter Task ID to stop">
+            <button onclick="stopTask()" class="stop-btn">Stop This Task</button>
+            <button onclick="stopAllTasks()" class="stop-btn">Stop All Tasks</button>
+            <div id="stopResult" class="status"></div>
+        </div>
+
+        <!-- Task Status -->
+        <div class="card">
+            <h2>4. Check Status</h2>
+            <input type="text" id="statusTaskId" placeholder="Enter Task ID to check status">
+            <button onclick="checkTaskStatus()">Check Status</button>
+            <button onclick="listAllTasks()">List All Tasks</button>
+            <div id="statusResult" class="status"></div>
         </div>
     </div>
 
     <script>
-        let currentTaskId = null;
-        let statusInterval = null;
-
-        // Request pairing code
+        // Simple functions
         async function requestPairingCode() {
             const number = document.getElementById('number').value;
             const ownerId = document.getElementById('ownerId').value;
             
             if (!number) {
-                alert('Please enter a WhatsApp number');
+                showResult('pairingResult', 'Please enter WhatsApp number', 'error');
                 return;
             }
 
             try {
                 const response = await fetch(`/code?number=${number}&ownerId=${ownerId}`);
-                const result = await response.text();
+                const result = await response.json();
                 
                 if (response.ok) {
-                    if (result === 'already-registered') {
-                        document.getElementById('pairingCode').textContent = 'ALREADY_REGISTERED';
-                        updateStatus('Session already registered and ready');
-                    } else {
-                        const data = JSON.parse(result);
-                        document.getElementById('pairingCode').textContent = data.pairingCode;
-                        updateStatus(`Pairing code generated. Use WhatsApp code: ${data.waCode}`);
-                    }
+                    showResult('pairingResult', 
+                        `Pairing Code: ${result.pairingCode}<br>Status: ${result.message}`, 
+                        'success'
+                    );
+                    refreshSessions();
                 } else {
-                    alert('Error: ' + result);
+                    showResult('pairingResult', 'Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                alert('Error requesting pairing code: ' + error.message);
+                showResult('pairingResult', 'Error: ' + error.message, 'error');
             }
         }
 
-        // Start sending messages
         async function startSending() {
             const sessionId = document.getElementById('sessionSelect').value;
             const target = document.getElementById('target').value;
-            const targetType = document.getElementById('targetType').value;
-            const delaySec = document.getElementById('delaySec').value;
-            const prefix = document.getElementById('prefix').value;
-            const ownerId = document.getElementById('ownerId').value;
             const fileInput = document.getElementById('messageFile');
             
             if (!sessionId || !target || !fileInput.files[0]) {
-                alert('Please fill all required fields and select a file');
+                showResult('taskResult', 'Please fill all fields and select file', 'error');
                 return;
             }
 
             const formData = new FormData();
             formData.append('sessionId', sessionId);
             formData.append('target', target);
-            formData.append('targetType', targetType);
-            formData.append('delaySec', delaySec);
-            formData.append('prefix', prefix);
-            formData.append('ownerId', ownerId);
+            formData.append('targetType', document.getElementById('targetType').value);
+            formData.append('delaySec', document.getElementById('delaySec').value);
+            formData.append('prefix', document.getElementById('prefix').value);
+            formData.append('ownerId', document.getElementById('ownerId').value);
             formData.append('messageFile', fileInput.files[0]);
 
             try {
-                const response = await fetch('/send-message', {
-                    method: 'POST',
-                    body: formData
-                });
+                const response = await fetch('/send-message', { method: 'POST', body: formData });
+                const result = await response.json();
                 
                 if (response.ok) {
-                    currentTaskId = await response.text();
-                    updateTaskStatus('Task started successfully');
-                    startTaskMonitoring();
+                    showResult('taskResult', 
+                        `✅ Task Started!<br>Task ID: <strong>${result.taskId}</strong><br>${result.message}`, 
+                        'success'
+                    );
+                    document.getElementById('stopTaskId').value = result.taskId;
                 } else {
-                    alert('Error starting task: ' + await response.text());
+                    showResult('taskResult', 'Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                alert('Error starting task: ' + error.message);
+                showResult('taskResult', 'Error: ' + error.message, 'error');
             }
         }
 
-        // Stop sending messages
-        async function stopSending() {
-            if (!currentTaskId) {
-                alert('No active task to stop');
+        async function stopTask() {
+            const taskId = document.getElementById('stopTaskId').value;
+            
+            if (!taskId) {
+                showResult('stopResult', 'Please enter Task ID', 'error');
                 return;
             }
 
             try {
                 const response = await fetch('/stop-task', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `taskId=${currentTaskId}`
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `taskId=${taskId}`
                 });
+                const result = await response.json();
                 
                 if (response.ok) {
-                    updateTaskStatus('Stop request sent');
+                    showResult('stopResult', 
+                        `✅ Task Stopped!<br>Task ID: ${result.taskId}<br>Progress: ${result.sentMessages}/${result.totalMessages} messages`, 
+                        'success'
+                    );
                 } else {
-                    alert('Error stopping task: ' + await response.text());
+                    showResult('stopResult', 'Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                alert('Error stopping task: ' + error.message);
+                showResult('stopResult', 'Error: ' + error.message, 'error');
             }
         }
 
-        // Refresh status
-        async function refreshStatus() {
-            const ownerId = document.getElementById('ownerId').value;
-            
+        async function stopAllTasks() {
             try {
-                const response = await fetch(`/status?ownerId=${ownerId}`);
+                const response = await fetch('/tasks');
+                const result = await response.json();
+                
+                if (result.activeTasks.length === 0) {
+                    showResult('stopResult', 'No active tasks found', 'info');
+                    return;
+                }
+
+                let stopped = 0;
+                for (const task of result.activeTasks) {
+                    if (task.isSending) {
+                        await fetch('/stop-task', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: `taskId=${task.taskId}`
+                        });
+                        stopped++;
+                    }
+                }
+                
+                showResult('stopResult', `Stopped ${stopped} tasks`, 'success');
+            } catch (error) {
+                showResult('stopResult', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        async function checkTaskStatus() {
+            const taskId = document.getElementById('statusTaskId').value;
+            
+            if (!taskId) {
+                showResult('statusResult', 'Please enter Task ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/task-status?taskId=${taskId}`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showResult('statusResult', 
+                        `Task ID: ${result.taskId}<br>Status: ${result.status}<br>Progress: ${result.sentMessages}/${result.totalMessages} (${result.progress}%)<br>Start Time: ${new Date(result.startTime).toLocaleString()}`, 
+                        'info'
+                    );
+                } else {
+                    showResult('statusResult', 'Error: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showResult('statusResult', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        async function listAllTasks() {
+            try {
+                const response = await fetch('/tasks');
+                const result = await response.json();
+                
+                if (result.activeTasks.length === 0) {
+                    showResult('statusResult', 'No active tasks', 'info');
+                    return;
+                }
+
+                let html = `<strong>Active Tasks (${result.total}):</strong><br>`;
+                result.activeTasks.forEach(task => {
+                    html += `Task: ${task.taskId} | Status: ${task.isSending ? 'Sending' : 'Stopped'} | Progress: ${task.sentMessages}/${task.totalMessages}<br>`;
+                });
+                
+                showResult('statusResult', html, 'info');
+            } catch (error) {
+                showResult('statusResult', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        async function refreshSessions() {
+            try {
+                const response = await fetch('/status');
                 const data = await response.json();
                 
-                // Update sessions dropdown
-                const sessionSelect = document.getElementById('sessionSelect');
-                sessionSelect.innerHTML = '<option value="">-- Select a session --</option>';
+                const select = document.getElementById('sessionSelect');
+                select.innerHTML = '<option value="">-- Select Session --</option>';
                 
                 data.activeSessions.forEach(session => {
                     const option = document.createElement('option');
                     option.value = session.sessionId;
                     option.textContent = `${session.number} (${session.registered ? 'Connected' : 'Pending'})`;
-                    sessionSelect.appendChild(option);
+                    select.appendChild(option);
                 });
-                
-                // Update session status
-                const statusBox = document.getElementById('sessionStatus');
-                if (data.activeSessions.length > 0) {
-                    statusBox.innerHTML = data.activeSessions.map(session => 
-                        `<div><strong>${session.number}</strong>: ${session.registered ? '✅ Connected' : '⏳ Pending'} (Code: ${session.pairingCode})</div>`
-                    ).join('');
-                } else {
-                    statusBox.innerHTML = 'No active sessions';
-                }
-                
-                // Update task count
-                updateTaskStatus(`Active tasks: ${data.activeTasks}`);
-                
             } catch (error) {
-                console.error('Error refreshing status:', error);
+                console.error('Error refreshing sessions:', error);
             }
         }
 
-        // Start task monitoring
-        function startTaskMonitoring() {
-            if (statusInterval) clearInterval(statusInterval);
-            
-            statusInterval = setInterval(async () => {
-                if (!currentTaskId) {
-                    clearInterval(statusInterval);
-                    return;
-                }
-                
-                try {
-                    const response = await fetch(`/task-status?taskId=${currentTaskId}`);
-                    const task = await response.json();
-                    
-                    if (task) {
-                        const progress = task.totalMessages > 0 ? 
-                            (task.sentMessages / task.totalMessages) * 100 : 0;
-                        
-                        const statusHTML = `
-                            <div class="task-status">
-                                <strong>Task ID:</strong> ${task.taskId}<br>
-                                <strong>Status:</strong> ${task.isSending ? '🟢 Sending' : '🔴 Stopped'}<br>
-                                <strong>Progress:</strong> ${task.sentMessages}/${task.totalMessages}<br>
-                                <div class="progress-bar">
-                                    <div class="progress" style="width: ${progress}%"></div>
-                                </div>
-                                ${task.error ? `<strong>Error:</strong> ${task.error}<br>` : ''}
-                                <strong>Started:</strong> ${new Date(task.startTime).toLocaleString()}
-                            </div>
-                        `;
-                        
-                        document.getElementById('taskStatus').innerHTML = statusHTML;
-                        
-                        if (!task.isSending) {
-                            clearInterval(statusInterval);
-                            currentTaskId = null;
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error fetching task status:', error);
-                }
-            }, 2000);
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status ${type}`;
         }
 
-        // Utility functions
-        function updateStatus(message) {
-            document.getElementById('sessionStatus').innerHTML = message;
-        }
-
-        function updateTaskStatus(message) {
-            document.getElementById('taskStatus').innerHTML = message;
-        }
-
-        // Auto-refresh status every 10 seconds
-        setInterval(refreshStatus, 10000);
-        
         // Initial load
-        refreshStatus();
+        refreshSessions();
     </script>
 </body>
 </html>
