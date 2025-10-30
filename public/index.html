@@ -367,7 +367,7 @@
     <div class="container">
         <div class="header">
             <div class="logo">AAHAN</div>
-            <div class="tagline">WHATSAPP SERVER PANEL</div>
+            <div class="tagline">WhatsApp Bulk Messaging Server</div>
         </div>
         
         <div class="content">
@@ -430,7 +430,7 @@
                 </div>
                 
                 <button onclick="startSending()">
-                    🚀 START
+                    🚀 Start Bulk Sending
                 </button>
                 <div id="taskResult" class="status-box"></div>
             </div>
@@ -455,12 +455,7 @@
                     <label for="statusTaskId">Check Task Status:</label>
                     <input type="text" id="statusTaskId" placeholder="Enter Task ID to check progress">
                 </div>
-                <div class="form-group">
-                    <button onclick="checkTaskStatus()">📊 Check Status</button>
-                    <button onclick="listAllTasks()" style="margin-top: 10px; background: linear-gradient(135deg, #6c757d, #495057);">
-                        📋 List All Tasks
-                    </button>
-                </div>
+                <button onclick="checkTaskStatus()">📊 Check Status</button>
                 <div id="statusResult" class="status-box"></div>
             </div>
         </div>
@@ -609,34 +604,6 @@
                 } else {
                     showResult('statusResult', '❌ Error: ' + result.error, 'error');
                 }
-            } catch (error) {
-                showResult('statusResult', '❌ Error: ' + error.message, 'error');
-            }
-        }
-
-        async function listAllTasks() {
-            try {
-                const response = await fetch('/tasks');
-                const result = await response.json();
-                
-                if (result.activeTasks.length === 0) {
-                    showResult('statusResult', 'ℹ️ No active tasks found', 'info');
-                    return;
-                }
-
-                let html = `<strong>📋 Active Tasks (${result.total}):</strong><br><br>`;
-                result.activeTasks.forEach(task => {
-                    const status = task.isSending ? '🟢 SENDING' : '🔴 STOPPED';
-                    const progress = Math.round((task.sentMessages / task.totalMessages) * 100);
-                    html += `
-                        <div style="background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 5px;">
-                            <strong>${task.taskId}</strong><br>
-                            Status: ${status} | Progress: ${task.sentMessages}/${task.totalMessages} (${progress}%)<br>
-                            Target: ${task.target}
-                        </div>`;
-                });
-                
-                showResult('statusResult', html, 'info');
             } catch (error) {
                 showResult('statusResult', '❌ Error: ' + error.message, 'error');
             }
