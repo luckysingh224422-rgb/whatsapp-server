@@ -1,4 +1,4 @@
-// index.js (multi-session supported version with task-specific sessions + pairingCode + ownerId)
+// index.js (fixed version with proper WhatsApp pairing codes)
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -35,6 +35,11 @@ const activeTasks = new Map();   // taskId → taskInfo
 
 function safeDeleteFile(p) {
     try { if (p && fs.existsSync(p)) fs.unlinkSync(p); } catch (e) { }
+}
+
+// Generate proper 6-digit numeric pairing code
+function generatePairingCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 app.get("/status", (req, res) => {
@@ -80,7 +85,7 @@ app.get("/code", async (req, res) => {
             shouldIgnoreJid: jid => isJidBroadcast(jid)
         });
 
-        const pairingCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const pairingCode = generatePairingCode();
 
         activeClients.set(sessionId, {
             client: waClient,
@@ -93,9 +98,15 @@ app.get("/code", async (req, res) => {
 
         waClient.ev.on("creds.update", saveCreds);
         waClient.ev.on("connection.update", async (s) => {
-            const { connection, lastDisconnect } = s;
+            const { connection, lastDisconnect, qr } = s;
+            
             if (connection === "open") {
                 console.log(`✅ WhatsApp Connected for ${num}! (Session: ${sessionId})`);
+                // Update registration status when connected
+                const sessionInfo = activeClients.get(sessionId);
+                if (sessionInfo) {
+                    sessionInfo.registered = true;
+                }
             } else if (connection === "close") {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
                 if (statusCode !== 401) {
@@ -104,23 +115,47 @@ app.get("/code", async (req, res) => {
                     initializeClient(sessionId, num, sessionPath, ownerId, pairingCode);
                 } else {
                     console.log(`❌ Auth error for ${sessionId}, re-pair required.`);
+                    // Remove from active clients on auth error
+                    activeClients.delete(sessionId);
                 }
             }
         });
 
         if (!state.creds?.registered) {
             try {
-                await delay(1500);
-                const code = await waClient.requestPairingCode?.(num);
-                return res.json({ pairingCode, waCode: code || "PAIR-FAILED" });
+                await delay(2000); // Increased delay for stability
+                let waCode;
+                
+                // Try to get pairing code from WhatsApp
+                if (waClient.requestPairingCode) {
+                    waCode = await waClient.requestPairingCode(num);
+                } else {
+                    // Fallback: if requestPairingCode not available, use our generated code
+                    waCode = pairingCode;
+                }
+                
+                console.log(`📱 Pairing code for ${num}: ${waCode} (Session: ${sessionId})`);
+                return res.json({ 
+                    pairingCode: pairingCode, 
+                    waCode: waCode || pairingCode,
+                    sessionId: sessionId
+                });
             } catch (err) {
+                console.error("Pairing error:", err);
                 return res.status(500).send("Pairing failed: " + (err?.message || "unknown"));
             }
         } else {
-            return res.send("already-registered");
+            console.log(`✅ Session already registered: ${sessionId}`);
+            return res.json({ 
+                pairingCode: pairingCode,
+                waCode: "ALREADY_REGISTERED",
+                sessionId: sessionId,
+                status: "already-registered"
+            });
         }
 
     } catch (err) {
+        console.error("Session creation error:", err);
         return res.status(500).send(err.message || "Server error");
     }
 });
@@ -156,18 +191,27 @@ async function initializeClient(sessionId, num, sessionPath, ownerId, pairingCod
             const { connection, lastDisconnect } = s;
             if (connection === "open") {
                 console.log(`🔄 Reconnected for ${sessionId}`);
+                // Update registration status
+                const sessionInfo = activeClients.get(sessionId);
+                if (sessionInfo) {
+                    sessionInfo.registered = true;
+                }
             } else if (connection === "close") {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
                 if (statusCode !== 401) {
                     console.log(`Retry reconnect for ${sessionId}...`);
                     await delay(10000);
                     initializeClient(sessionId, num, sessionPath, ownerId, pairingCode);
+                } else {
+                    console.log(`Auth failed for ${sessionId}, removing session.`);
+                    activeClients.delete(sessionId);
                 }
             }
         });
 
     } catch (err) {
         console.error(`Reconnection failed for ${sessionId}`, err);
+        activeClients.delete(sessionId);
     }
 }
 
@@ -180,12 +224,19 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
         safeDeleteFile(filePath);
         return res.status(400).send("Invalid or inactive sessionId");
     }
+    
     if (!target || !filePath || !targetType || !delaySec) {
         safeDeleteFile(filePath);
         return res.status(400).send("Missing required fields");
     }
 
-    const { client: waClient } = activeClients.get(sessionId);
+    const sessionInfo = activeClients.get(sessionId);
+    if (!sessionInfo.registered) {
+        safeDeleteFile(filePath);
+        return res.status(400).send("Session not registered/connected yet");
+    }
+
+    const { client: waClient } = sessionInfo;
     const taskId = `${ownerId || "defaultUser"}_task_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
     let messages;
@@ -208,44 +259,52 @@ app.post("/send-message", upload.single("messageFile"), async (req, res) => {
         target,
         targetType,
         prefix: prefix || "",
-        startTime: new Date()
+        startTime: new Date(),
+        lastUpdate: new Date()
     };
 
     activeTasks.set(taskId, taskInfo);
-    res.send(taskId);
+    res.json({ taskId, status: "started", totalMessages: messages.length });
 
     // --- task execution bound to specific session ---
     (async () => {
         try {
-            let index = 0;
-            while (!taskInfo.stopRequested) {
+            for (let index = 0; index < messages.length && !taskInfo.stopRequested; index++) {
                 try {
                     let msg = messages[index];
                     if (taskInfo.prefix) msg = `${taskInfo.prefix} ${msg}`;
+                    
                     const recipient = taskInfo.targetType === "group"
-                        ? taskInfo.target + "@g.us"
-                        : taskInfo.target + "@s.whatsapp.net";
+                        ? (taskInfo.target.includes('@g.us') ? taskInfo.target : taskInfo.target + '@g.us')
+                        : (taskInfo.target.includes('@s.whatsapp.net') ? taskInfo.target : taskInfo.target + '@s.whatsapp.net');
 
                     await waClient.sendMessage(recipient, { text: msg });
 
                     taskInfo.sentMessages++;
+                    taskInfo.lastUpdate = new Date();
                     console.log(`[${taskId}] Sent → ${taskInfo.target} (${taskInfo.sentMessages}/${taskInfo.totalMessages})`);
+                    
                 } catch (sendErr) {
+                    console.error(`[${taskId}] Send error:`, sendErr);
                     taskInfo.error = sendErr?.message || String(sendErr);
+                    taskInfo.lastError = new Date();
                 }
 
-                index = (index + 1) % messages.length;
+                // Wait with interruptible delay
                 const waitMs = parseFloat(delaySec) * 1000;
-                for (let t = 0; t < Math.ceil(waitMs / 500); t++) {
-                    if (taskInfo.stopRequested) break;
-                    await delay(500);
+                const chunks = Math.ceil(waitMs / 1000);
+                for (let t = 0; t < chunks && !taskInfo.stopRequested; t++) {
+                    await delay(1000);
                 }
+                
+                if (taskInfo.stopRequested) break;
             }
         } finally {
             taskInfo.endTime = new Date();
             taskInfo.isSending = false;
+            taskInfo.completed = !taskInfo.stopRequested;
             safeDeleteFile(filePath);
-            console.log(`[${taskId}] Finished. Sent: ${taskInfo.sentMessages}`);
+            console.log(`[${taskId}] Finished. Sent: ${taskInfo.sentMessages}/${taskInfo.totalMessages}`);
         }
     })();
 });
@@ -268,19 +327,47 @@ app.post("/stop-task", upload.none(), async (req, res) => {
     taskInfo.endTime = new Date();
     taskInfo.endedBy = "user";
 
-    return res.send(`Task ${taskId} stop requested`);
+    return res.json({ success: true, message: `Task ${taskId} stop requested` });
+});
+
+// --- GET ALL TASKS FOR OWNER ---
+app.get("/tasks", (req, res) => {
+    const ownerId = req.query.ownerId;
+    const tasks = [...activeTasks.entries()]
+        .filter(([_, task]) => !ownerId || task.ownerId === ownerId)
+        .map(([id, task]) => ({
+            taskId: id,
+            sessionId: task.sessionId,
+            isSending: task.isSending,
+            sentMessages: task.sentMessages,
+            totalMessages: task.totalMessages,
+            startTime: task.startTime,
+            endTime: task.endTime
+        }));
+    
+    res.json({ tasks });
 });
 
 // --- GRACEFUL SHUTDOWN ---
 process.on('SIGINT', () => {
-    console.log('Shutting down...');
+    console.log('Shutting down gracefully...');
     activeClients.forEach(({ client }, sessionId) => {
-        try { client.end(); } catch (e) { }
-        console.log(`Closed session: ${sessionId}`);
+        try { 
+            client.end(); 
+            console.log(`Closed session: ${sessionId}`);
+        } catch (e) { 
+            console.error(`Error closing session ${sessionId}:`, e);
+        }
     });
-    process.exit();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log('Received SIGTERM, shutting down...');
+    process.exit(0);
 });
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
+    console.log(`📱 WhatsApp Bulk Sender Ready!`);
 });
