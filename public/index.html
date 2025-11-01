@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aahan WhatsApp Server</title>
+    <title>Aahan WhatsApp Server - Spiderman VIP</title>
     <style>
         * {
             margin: 0;
@@ -13,73 +13,198 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: 
+                linear-gradient(135deg, rgba(12, 12, 46, 0.1) 0%, rgba(26, 26, 74, 0.05) 50%, rgba(45, 27, 78, 0.02) 100%),
+                url('https://images.unsplash.com/photo-1635805737707-575885ab0820?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             min-height: 100vh;
             padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .spiderman-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                url('https://images.unsplash.com/photo-1635805737707-575885ab0820?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80') center/cover,
+                url('https://images.unsplash.com/photo-1620336655055-bd87c1e4d6c1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80') right bottom/contain no-repeat;
+            background-blend-mode: normal;
+            opacity: 0.9;
+            z-index: -3;
+            animation: bgShift 30s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgShift {
+            0% { 
+                background-position: center, right bottom;
+                filter: hue-rotate(0deg);
+            }
+            50% {
+                background-position: center, center;
+                filter: hue-rotate(10deg);
+            }
+            100% { 
+                background-position: center, left top;
+                filter: hue-rotate(0deg);
+            }
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 25px;
+            box-shadow: 
+                0 25px 50px rgba(229, 9, 20, 0.2),
+                0 0 100px rgba(229, 9, 20, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
             overflow: hidden;
+            border: 1px solid rgba(229, 9, 20, 0.2);
+            backdrop-filter: blur(5px);
+            position: relative;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #e50914, #b8060f, #e50914);
+            box-shadow: 0 0 20px rgba(229, 9, 20, 0.5);
         }
 
         .header {
-            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            background: 
+                linear-gradient(135deg, rgba(229, 9, 20, 0.9) 0%, rgba(180, 6, 15, 0.8) 50%, rgba(140, 0, 10, 0.7) 100%),
+                url('https://images.unsplash.com/photo-1635805737707-575885ab0820?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+            background-size: cover;
+            background-position: center;
+            background-blend-mode: overlay;
             color: white;
-            padding: 40px;
+            padding: 50px 40px;
             text-align: center;
             position: relative;
             overflow: hidden;
+            border-bottom: 3px solid #e50914;
         }
 
         .header::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 20px 20px;
-            animation: float 20s linear infinite;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            animation: spiderPulse 4s ease-in-out infinite alternate;
         }
 
-        @keyframes float {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            100% { transform: translate(-20px, -20px) rotate(360deg); }
+        @keyframes spiderPulse {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.7; }
         }
 
         .logo {
-            font-size: 3.5em;
+            font-size: 4em;
             font-weight: bold;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 15px;
+            text-shadow: 
+                0 0 30px rgba(255, 255, 255, 0.8),
+                0 0 60px rgba(255, 255, 255, 0.4),
+                2px 2px 4px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(45deg, #ffffff, #ffcccc, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% 200%;
+            animation: logoShine 3s ease-in-out infinite;
+            position: relative;
+            z-index: 2;
+        }
+
+        @keyframes logoShine {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
         }
 
         .tagline {
-            font-size: 1.3em;
-            opacity: 0.9;
+            font-size: 1.4em;
+            opacity: 0.95;
             font-weight: 300;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            color: #ffffff;
+            position: relative;
+            z-index: 2;
+        }
+
+        .spider-logo {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #ffffff 30%, transparent 70%);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
+            animation: spiderFloat 3s ease-in-out infinite;
+        }
+
+        .spider-logo::before, .spider-logo::after {
+            content: '';
+            position: absolute;
+            background: #ffffff;
+            border-radius: 10px;
+        }
+
+        .spider-logo::before {
+            width: 8px;
+            height: 60px;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+        }
+
+        .spider-logo::after {
+            width: 60px;
+            height: 8px;
+            left: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+        }
+
+        @keyframes spiderFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
         }
 
         .content {
             padding: 40px;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 30px;
         }
 
         .card {
-            background: linear-gradient(145deg, #ffffff, #f8f9fa);
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
             padding: 30px;
-            border: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
+            border: 1px solid rgba(229, 9, 20, 0.2);
+            box-shadow: 
+                0 10px 30px rgba(229, 9, 20, 0.1),
+                0 0 20px rgba(229, 9, 20, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            transition: all 0.4s ease;
             position: relative;
             overflow: hidden;
         }
@@ -91,35 +216,41 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #25D366, #128C7E);
+            background: linear-gradient(90deg, #e50914, #b8060f, #e50914);
+            box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
         }
 
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+            transform: translateY(-8px);
+            box-shadow: 
+                0 15px 40px rgba(229, 9, 20, 0.2),
+                0 0 30px rgba(229, 9, 20, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            border-color: rgba(229, 9, 20, 0.4);
         }
 
         .card h2 {
-            color: #25D366;
+            color: #e50914;
             margin-bottom: 25px;
             font-size: 1.6em;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .card h2::before {
-            content: '✓';
-            background: #25D366;
+            content: '🕷️';
+            background: linear-gradient(45deg, #e50914, #b8060f);
             color: white;
-            width: 30px;
-            height: 30px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.8em;
+            font-size: 0.9em;
+            box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
         }
 
         .form-group {
@@ -129,44 +260,53 @@
 
         label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             font-weight: 600;
-            color: #2d3748;
+            color: #e50914;
             font-size: 0.95em;
         }
 
         input, select, textarea {
             width: 100%;
-            padding: 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
+            padding: 16px;
+            border: 2px solid rgba(229, 9, 20, 0.2);
+            border-radius: 12px;
             font-size: 16px;
             transition: all 0.3s ease;
-            background: white;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input::placeholder {
+            color: #888;
         }
 
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #25D366;
-            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
+            border-color: #e50914;
+            box-shadow: 
+                0 0 0 3px rgba(229, 9, 20, 0.1),
+                inset 0 2px 10px rgba(0, 0, 0, 0.1);
             transform: translateY(-2px);
         }
 
         button {
             width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #25D366, #128C7E);
+            padding: 18px;
+            background: linear-gradient(135deg, #e50914, #b8060f);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             position: relative;
             overflow: hidden;
+            box-shadow: 0 5px 20px rgba(229, 9, 20, 0.3);
         }
 
         button::before {
@@ -176,8 +316,8 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s;
         }
 
         button:hover::before {
@@ -186,7 +326,8 @@
 
         button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(37, 211, 102, 0.3);
+            box-shadow: 0 8px 25px rgba(229, 9, 20, 0.4);
+            background: linear-gradient(135deg, #ff1a1a, #c50a0a);
         }
 
         button:active {
@@ -194,11 +335,12 @@
         }
 
         .stop-btn {
-            background: linear-gradient(135deg, #dc3545, #c82333);
+            background: linear-gradient(135deg, #dc3545, #a71e2a);
         }
 
         .stop-btn:hover {
-            box-shadow: 0 10px 25px rgba(220, 53, 69, 0.3);
+            background: linear-gradient(135deg, #e74c3c, #b3382c);
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
         }
 
         .file-input-wrapper {
@@ -209,82 +351,88 @@
         }
 
         .file-input {
-            padding: 15px;
-            background: #f8f9fa;
-            border: 2px dashed #cbd5e0;
-            border-radius: 10px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px dashed rgba(229, 9, 20, 0.3);
+            border-radius: 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            color: #718096;
+            color: #888;
         }
 
         .file-input:hover {
-            border-color: #25D366;
-            background: #f0fff4;
-            color: #25D366;
+            border-color: #e50914;
+            background: rgba(229, 9, 20, 0.05);
+            color: #e50914;
         }
 
         .status-box {
-            background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(229, 9, 20, 0.2);
+            border-radius: 12px;
             padding: 20px;
-            margin-top: 10px;
+            margin-top: 15px;
             min-height: 80px;
             max-height: 200px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 14px;
             line-height: 1.5;
+            color: #333;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .task-id {
-            background: #2d3748;
-            color: #68d391;
+            background: rgba(229, 9, 20, 0.1);
+            color: #e50914;
             padding: 15px;
-            border-radius: 10px;
+            border-radius: 12px;
             font-family: 'Courier New', monospace;
             font-size: 16px;
             text-align: center;
             margin: 15px 0;
-            border: 2px solid #4a5568;
+            border: 2px solid rgba(229, 9, 20, 0.3);
             word-break: break-all;
+            box-shadow: 0 0 15px rgba(229, 9, 20, 0.1);
         }
 
         .success {
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
-            color: #155724;
-            border: 2px solid #c3e6cb;
+            background: linear-gradient(135deg, rgba(34, 139, 34, 0.1), rgba(50, 205, 50, 0.05));
+            color: #2e8b57;
+            border: 2px solid rgba(46, 139, 87, 0.3);
         }
 
         .error {
-            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
-            color: #721c24;
-            border: 2px solid #f5c6cb;
+            background: linear-gradient(135deg, rgba(178, 34, 34, 0.1), rgba(205, 92, 92, 0.05));
+            color: #b22222;
+            border: 2px solid rgba(178, 34, 34, 0.3);
         }
 
         .info {
-            background: linear-gradient(135deg, #cce7ff, #b3d9ff);
-            color: #004085;
-            border: 2px solid #b3d9ff;
+            background: linear-gradient(135deg, rgba(30, 144, 255, 0.1), rgba(135, 206, 250, 0.05));
+            color: #1e90ff;
+            border: 2px solid rgba(30, 144, 255, 0.3);
         }
 
         .progress-bar {
             width: 100%;
-            height: 12px;
-            background: #e2e8f0;
+            height: 15px;
+            background: rgba(255, 255, 255, 0.8);
             border-radius: 10px;
             overflow: hidden;
             margin: 15px 0;
+            border: 1px solid rgba(229, 9, 20, 0.2);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         .progress {
             height: 100%;
-            background: linear-gradient(90deg, #25D366, #48bb78);
+            background: linear-gradient(90deg, #e50914, #ff6b6b, #e50914);
             border-radius: 10px;
-            transition: width 0.3s ease;
+            transition: width 0.4s ease;
             position: relative;
+            box-shadow: 0 0 10px rgba(229, 9, 20, 0.3);
         }
 
         .progress::after {
@@ -294,39 +442,72 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-            animation: shimmer 2s infinite;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: spiderShimmer 2s infinite;
         }
 
-        @keyframes shimmer {
+        @keyframes spiderShimmer {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
         }
 
         small {
-            color: #718096;
+            color: #666;
             font-size: 0.85em;
             display: block;
             margin-top: 5px;
         }
 
         .section-number {
-            background: #25D366;
+            background: linear-gradient(45deg, #e50914, #b8060f);
             color: white;
-            width: 30px;
-            height: 30px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            margin-right: 10px;
+            margin-right: 12px;
             font-weight: bold;
+            box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(229, 9, 20, 0.05);
+            border-radius: 10px;
+            margin: 10px 0;
+            border: 1px solid rgba(229, 9, 20, 0.2);
+        }
+
+        .status-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #e50914;
+            box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
+            animation: spiderPulseDot 2s infinite;
+        }
+
+        @keyframes spiderPulseDot {
+            0%, 100% { 
+                opacity: 1;
+                box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
+            }
+            50% { 
+                opacity: 0.6;
+                box-shadow: 0 0 25px rgba(229, 9, 20, 0.8);
+            }
         }
 
         @media (max-width: 768px) {
             .content {
                 grid-template-columns: 1fr;
                 padding: 20px;
+                gap: 20px;
             }
             
             .header {
@@ -334,40 +515,75 @@
             }
             
             .logo {
-                font-size: 2.5em;
+                font-size: 2.8em;
+            }
+
+            .spider-logo {
+                width: 60px;
+                height: 60px;
+                top: 15px;
+                right: 20px;
             }
         }
 
-        .connection-status {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: #f0fff4;
-            border-radius: 8px;
-            margin: 10px 0;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
+        /* Floating particles */
+        .particle {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: rgba(229, 9, 20, 0.6);
             border-radius: 50%;
-            background: #48bb78;
-            animation: pulse 2s infinite;
+            pointer-events: none;
+            z-index: -1;
+            animation: floatParticle 20s linear infinite;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        @keyframes floatParticle {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Web pattern overlay */
+        .web-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(45deg, transparent 48%, rgba(229, 9, 20, 0.02) 48%, rgba(229, 9, 20, 0.02) 52%, transparent 52%),
+                linear-gradient(-45deg, transparent 48%, rgba(229, 9, 20, 0.02) 48%, rgba(229, 9, 20, 0.02) 52%, transparent 52%);
+            background-size: 80px 80px;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.3;
         }
     </style>
 </head>
 <body>
+    <div class="spiderman-bg"></div>
+    <div class="web-overlay"></div>
+
+    <!-- Floating particles -->
+    <div id="particles-container"></div>
+
     <div class="container">
         <div class="header">
+            <div class="spider-logo"></div>
             <div class="logo">AAHAN</div>
-            <div class="tagline">WhatsApp Bulk Messaging Server</div>
+            <div class="tagline">Spiderman VIP WhatsApp Server</div>
         </div>
         
         <div class="content">
@@ -375,15 +591,15 @@
             <div class="card">
                 <h2><span class="section-number">1</span>Session Setup</h2>
                 <div class="form-group">
-                    <label for="ownerId">Owner ID:</label>
+                    <label for="ownerId">🕷️ Owner ID:</label>
                     <input type="text" id="ownerId" placeholder="Enter your unique owner ID" value="user1">
                 </div>
                 <div class="form-group">
-                    <label for="number">WhatsApp Number:</label>
+                    <label for="number">📱 WhatsApp Number:</label>
                     <input type="text" id="number" placeholder="e.g., 919876543210">
                 </div>
                 <button onclick="requestPairingCode()" id="pairBtn">
-                    🔗 Generate Pairing Code
+                    🕸️ Generate Pairing Code
                 </button>
                 <div id="pairingResult" class="status-box"></div>
             </div>
@@ -392,27 +608,27 @@
             <div class="card">
                 <h2><span class="section-number">2</span>Send Messages</h2>
                 <div class="form-group">
-                    <label for="sessionSelect">Select Session:</label>
+                    <label for="sessionSelect">🕷️ Select Session:</label>
                     <select id="sessionSelect">
                         <option value="">-- Choose connected session --</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label for="target">Target Number/Group:</label>
+                    <label for="target">🎯 Target Number/Group:</label>
                     <input type="text" id="target" placeholder="e.g., 919876543210 or group-id">
                 </div>
                 
                 <div class="form-group">
-                    <label for="targetType">Message Type:</label>
+                    <label for="targetType">📨 Message Type:</label>
                     <select id="targetType">
-                        <option value="individual">📱 Individual Message</option>
-                        <option value="group">👥 Group Message</option>
+                        <option value="individual">🕷️ Individual Message</option>
+                        <option value="group">🕸️ Group Message</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label for="messageFile">Message File:</label>
+                    <label for="messageFile">📁 Message File:</label>
                     <div class="file-input-wrapper">
                         <input type="file" id="messageFile" accept=".txt" class="file-input">
                     </div>
@@ -420,12 +636,12 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="prefix">Message Prefix (Optional):</label>
+                    <label for="prefix">🔤 Message Prefix (Optional):</label>
                     <input type="text" id="prefix" placeholder="e.g., Hello! ">
                 </div>
                 
                 <div class="form-group">
-                    <label for="delaySec">Delay Between Messages (seconds):</label>
+                    <label for="delaySec">⏰ Delay Between Messages (seconds):</label>
                     <input type="number" id="delaySec" value="2" min="1" max="60">
                 </div>
                 
@@ -439,11 +655,11 @@
             <div class="card">
                 <h2><span class="section-number">3</span>Task Control</h2>
                 <div class="form-group">
-                    <label for="stopTaskId">Task ID to Stop:</label>
+                    <label for="stopTaskId">🛑 Task ID to Stop:</label>
                     <input type="text" id="stopTaskId" placeholder="Enter Task ID from above">
                 </div>
                 <button onclick="stopTask()" class="stop-btn">
-                    🛑 Stop This Task
+                    🕷️ Stop This Task
                 </button>
                 <div id="stopResult" class="status-box"></div>
             </div>
@@ -452,16 +668,29 @@
             <div class="card">
                 <h2><span class="section-number">4</span>Monitor Tasks</h2>
                 <div class="form-group">
-                    <label for="statusTaskId">Check Task Status:</label>
+                    <label for="statusTaskId">📊 Check Task Status:</label>
                     <input type="text" id="statusTaskId" placeholder="Enter Task ID to check progress">
                 </div>
-                <button onclick="checkTaskStatus()">📊 Check Status</button>
+                <button onclick="checkTaskStatus()">🕸️ Check Status</button>
                 <div id="statusResult" class="status-box"></div>
             </div>
         </div>
     </div>
 
     <script>
+        // Create floating particles
+        function createParticles() {
+            const container = document.getElementById('particles-container');
+            for (let i = 0; i < 15; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 15) + 's';
+                container.appendChild(particle);
+            }
+        }
+
         // Simple functions
         async function requestPairingCode() {
             const number = document.getElementById('number').value;
@@ -493,7 +722,7 @@
                 showResult('pairingResult', '❌ Error: ' + error.message, 'error');
             } finally {
                 pairBtn.disabled = false;
-                pairBtn.innerHTML = '🔗 Generate Pairing Code';
+                pairBtn.innerHTML = '🕸️ Generate Pairing Code';
             }
         }
 
@@ -635,6 +864,7 @@
         }
 
         // Initial load
+        createParticles();
         refreshSessions();
         
         // Auto-refresh sessions every 30 seconds
